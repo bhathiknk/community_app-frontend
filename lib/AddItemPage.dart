@@ -158,7 +158,7 @@ class _AddItemPageState extends State<AddItemPage> {
       backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         title: const Text("Add New Item"),
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.white,
         centerTitle: true,
       ),
       body: _isLoading
