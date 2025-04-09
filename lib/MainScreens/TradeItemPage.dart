@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:http/http.dart' as http;
 
+import '../TradeItemDetailsPage.dart';
 import '../bottom_nav_bar.dart';
 
 class TradeItemPage extends StatefulWidget {
@@ -56,8 +57,7 @@ class _TradeItemPageState extends State<TradeItemPage> {
   Future<void> _fetchAllActiveTradeItems({String? search, int? categoryId}) async {
     setState(() => _isLoading = true);
 
-    // build query string
-    // e.g. /api/trade?search=xxx&categoryId=yyy
+    // build query string e.g. /api/trade?search=xxx&categoryId=yyy
     String url = "$BASE_URL/api/trade";
     List<String> params = [];
     if (search != null && search.isNotEmpty) {
@@ -238,85 +238,100 @@ class _TradeItemPageState extends State<TradeItemPage> {
           final status = item["status"] ?? "Unknown";
           final images = item["images"] as List<dynamic>?;
 
-          return Card(
-            color: Colors.white,
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image slider
-                  if (images != null && images.isNotEmpty)
-                    CarouselSlider(
-                      items: images.map((imgUrl) {
-                        return Builder(
-                          builder: (context) {
-                            return Container(
-                              margin: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                color: Colors.grey[200],
-                              ),
-                              child: Image.network(
-                                imgUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (ctx, error, stack) {
-                                  return const Center(
-                                    child: Text("Image load error"),
-                                  );
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      }).toList(),
-                      options: CarouselOptions(
-                        height: 200,
-                        autoPlay: true,
-                        enlargeCenterPage: true,
-                        enableInfiniteScroll: false,
-                        aspectRatio: 16 / 9,
-                        autoPlayInterval: const Duration(seconds: 3),
-                        autoPlayAnimationDuration:
-                        const Duration(milliseconds: 800),
-                        viewportFraction: 0.8,
-                      ),
-                    )
-                  else
-                    Container(
-                      height: 200,
-                      color: Colors.grey[300],
-                      child: const Center(
-                        child: Text("No images"),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-
-                  // Title
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+          // Wrap the card in a GestureDetector so we can navigate to details
+          return GestureDetector(
+            onTap: () {
+              // Navigate to a detail page
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TradeItemDetailsPage(
+                    token: widget.token,
+                    itemId: item["itemId"],
                   ),
-                  const SizedBox(height: 6),
+                ),
+              );
+            },
+            child: Card(
+              color: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Image slider
+                    if (images != null && images.isNotEmpty)
+                      CarouselSlider(
+                        items: images.map((imgUrl) {
+                          return Builder(
+                            builder: (context) {
+                              return Container(
+                                margin: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.grey[200],
+                                ),
+                                child: Image.network(
+                                  imgUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (ctx, error, stack) {
+                                    return const Center(
+                                      child: Text("Image load error"),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          );
+                        }).toList(),
+                        options: CarouselOptions(
+                          height: 200,
+                          autoPlay: true,
+                          enlargeCenterPage: true,
+                          enableInfiniteScroll: false,
+                          aspectRatio: 16 / 9,
+                          autoPlayInterval: const Duration(seconds: 3),
+                          autoPlayAnimationDuration:
+                          const Duration(milliseconds: 800),
+                          viewportFraction: 0.8,
+                        ),
+                      )
+                    else
+                      Container(
+                        height: 200,
+                        color: Colors.grey[300],
+                        child: const Center(
+                          child: Text("No images"),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
 
-                  // Price
-                  Text("Price: \$$price"),
-                  const SizedBox(height: 6),
+                    // Title
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
 
-                  // Status
-                  Text("Status: $status"),
-                ],
+                    // Price
+                    Text("Price: \$$price"),
+                    const SizedBox(height: 6),
+
+                    // Status
+                    Text("Status: $status"),
+                  ],
+                ),
               ),
             ),
           );
