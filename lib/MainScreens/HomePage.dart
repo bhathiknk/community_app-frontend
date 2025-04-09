@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../AddItemPage.dart';
+import '../MyItemsPage.dart';
 import '../bottom_nav_bar.dart';
 
 class HomePage extends StatefulWidget {
@@ -209,8 +211,25 @@ class _HomePageState extends State<HomePage> {
   Widget _actionCard(String title, IconData icon) {
     return GestureDetector(
       onTap: () {
-        // TODO: Handle navigation or actions
-      },
+          if (title == "Add Item") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddItemPage(token: widget.token),
+              ),
+            );
+          } else if (title == "My Items") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MyItemsPage(token: widget.token),
+              ),
+            );
+          } else {
+            // Handle "Traded Items" or other actions
+          }
+        },
+
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
