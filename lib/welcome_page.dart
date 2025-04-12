@@ -5,33 +5,78 @@ class WelcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      // AppBar is optional; you can remove it if you want a full-screen welcome
-      appBar: AppBar(
-        title: const Text('Welcome'),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      backgroundColor: const Color(0xFFB3D1B9),
+      body: SafeArea(
+        child: Container(
+          width: size.width,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // A simple welcome text
+              const SizedBox(height: 40),
+
+              // App logo or illustration
+              SizedBox(
+                height: size.height * 0.40,
+                child: Image.asset(
+                  'images/welcome.png', // Make sure this image exists
+                  fit: BoxFit.contain,
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Headline text
               const Text(
-                'Welcome to Our Community App',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                'Welcome to Our Community!',
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
-              const SizedBox(height: 32),
-              // “Get Started” button
-              ElevatedButton(
-                onPressed: () {
-                  // Navigate to Sign In page
-                  Navigator.pushNamed(context, '/signin');
-                },
-                child: const Text('Get Started'),
+
+              const SizedBox(height: 16),
+
+              // Subtitle text
+              const Text(
+                'Join us to connect, trade, and donate items with amazing people around you.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black54,
+                  height: 1.4,
+                ),
               ),
+
+              const Spacer(),
+
+              // Get Started butto
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/signin');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    'Get Started',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
             ],
           ),
         ),

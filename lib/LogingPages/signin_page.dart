@@ -105,7 +105,7 @@ class _SignInPageState extends State<SignInPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F8),
+      backgroundColor: const Color(0xFFB3D1B9),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Center(
