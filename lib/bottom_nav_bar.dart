@@ -54,7 +54,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
       currentIndex: _currentIndex,
       onTap: _onTabTapped,
       selectedItemColor: Colors.green,
-      unselectedItemColor: Colors.grey,
+      unselectedItemColor: Colors.grey[700],
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
         BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: "Trade"),

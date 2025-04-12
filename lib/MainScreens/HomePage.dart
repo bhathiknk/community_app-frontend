@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../AddItemPage.dart';
 import '../MyItemsPage.dart';
+import '../TradeItemRequestPage.dart';
 import '../bottom_nav_bar.dart';
 
 class HomePage extends StatefulWidget {
@@ -157,7 +158,7 @@ class _HomePageState extends State<HomePage> {
                           _buildGrid([
                             _actionCard("Add Item", Icons.add_box),
                             _actionCard("My Items", Icons.inventory),
-                            _actionCard("Traded Items", Icons.check_circle),
+                            _actionCard("Trade Request", Icons.swap_horiz),
                           ]),
                           _buildGrid([
                             _actionCard("Add Donation", Icons.volunteer_activism),
@@ -226,8 +227,14 @@ class _HomePageState extends State<HomePage> {
                 builder: (_) => MyItemsPage(token: widget.token),
               ),
             );
-          } else {
-            // Handle "Traded Items" or other actions
+          } else if (title == "Trade Request")
+          {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TradeItemRequestPage(token: widget.token),
+              ),
+            );
           }
         },
 
