@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
 import '../AddItemPage.dart';
 import '../MyItemsPage.dart';
 import '../TradeItemRequestPage.dart';
@@ -21,6 +20,7 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
   String _error = '';
   static const String BASE_URL = "http://10.0.2.2:8080";
+  String _currentUserId = "";
 
   @override
   void initState() {
@@ -39,10 +39,18 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (response.statusCode == 200) {
+        final rawJson = response.body;
+        print("Raw profile response => $rawJson");
+        final parsedData = jsonDecode(rawJson);
+
         setState(() {
-          _profile = jsonDecode(response.body);
+          _profile = parsedData is Map<String, dynamic> ? parsedData : null;
           _isLoading = false;
         });
+
+        // Adjust key if your backend returns a different field (e.g., "id")
+        _currentUserId = _profile?["userId"] ?? "";
+        print("Extracted currentUserId => $_currentUserId");
       } else {
         setState(() {
           _error = "Failed to load profile";
@@ -96,8 +104,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Profile Info
             Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -127,8 +133,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Tabs
             Expanded(
               child: DefaultTabController(
                 length: 2,
@@ -150,15 +154,23 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // Buttons inside each tab
                     Expanded(
                       child: TabBarView(
                         children: [
                           _buildGrid([
                             _actionCard("Add Item", Icons.add_box),
                             _actionCard("My Items", Icons.inventory),
-                            _actionCard("Trade Request", Icons.swap_horiz),
+                            _actionCard("Trade Request", Icons.swap_horiz, onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TradeItemRequestPage(
+                                    token: widget.token,
+                                    currentUserId: _currentUserId,
+                                  ),
+                                ),
+                              );
+                            }),
                           ]),
                           _buildGrid([
                             _actionCard("Add Donation", Icons.volunteer_activism),
@@ -190,18 +202,15 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.black54,
-                    )),
+                Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54),
+                ),
                 const SizedBox(height: 2),
-                Text(value ?? '-',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    )),
+                Text(
+                  value ?? '-',
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
               ],
             ),
           ),
@@ -210,39 +219,31 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _actionCard(String title, IconData icon) {
+  Widget _actionCard(String title, IconData icon, {VoidCallback? onTap}) {
     return GestureDetector(
-      onTap: () {
-          if (title == "Add Item") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AddItemPage(token: widget.token),
-              ),
-            );
-          } else if (title == "My Items") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MyItemsPage(token: widget.token),
-              ),
-            );
-          } else if (title == "Trade Request")
-          {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TradeItemRequestPage(token: widget.token),
-              ),
-            );
-          }
-        },
-
+      onTap: onTap ??
+              () {
+            if (title == "Add Item") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddItemPage(token: widget.token),
+                ),
+              );
+            } else if (title == "My Items") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyItemsPage(token: widget.token),
+                ),
+              );
+            }
+          },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1)),
           ],
         ),
@@ -253,11 +254,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: Colors.black87),
               textAlign: TextAlign.center,
             ),
           ],
