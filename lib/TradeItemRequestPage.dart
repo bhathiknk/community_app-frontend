@@ -28,6 +28,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   Future<void> _fetchIncomingRequestsDetailed() async {
     setState(() => _isLoading = true);
     try {
+      // Fetch all incoming requests. Client-side filtering will be performed.
       final resp = await http.get(
         Uri.parse("$BASE_URL/api/trade/requests/incoming/detailed"),
         headers: {
@@ -47,7 +48,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -70,7 +72,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -93,7 +96,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -141,108 +145,199 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFB3D1B9),
-      appBar: AppBar(
-        title: const Text(
-          "Incoming Trade Requests",
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NotificationPage(token: widget.token),
-                ),
-              );
-            },
+    // Filter requests based on status.
+    final pendingRequests = _detailedRequests.where((req) => req["status"] == "PENDING").toList();
+    final acceptedRequests = _detailedRequests.where((req) => req["status"] == "ACCEPTED").toList();
+    final rejectedRequests = _detailedRequests.where((req) => req["status"] == "REJECTED").toList();
+
+    // Wrap Scaffold inside a DefaultTabController
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFB3D1B9),
+        appBar: AppBar(
+          title: const Text(
+            "Incoming Trade Requests",
+            style: TextStyle(color: Colors.black),
           ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _detailedRequests.isEmpty
-          ? const Center(child: Text("No incoming requests."))
-          : ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _detailedRequests.length,
-        itemBuilder: (context, i) {
-          final req = _detailedRequests[i];
-          final requestId = req["requestId"];
-          final status = req["status"];
-          final moneyOffer = req["moneyOffer"] ?? 0;
-          final offeredByName = req["offeredByUserName"] ?? "Unknown";
-          final tradeType = req["tradeType"] ?? "MONEY";
-
-          final requestedTitle = req["requestedItemTitle"] ?? "??";
-          final requestedDescription = req["requestedItemDescription"] ?? "";
-          final requestedPrice = req["requestedItemPrice"]?.toString() ?? "0.0";
-          final requestedImages = req["requestedItemImages"] as List<dynamic>? ?? [];
-
-          return Card(
-            elevation: 0,
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ExpansionTile(
-              title: Text(
-                "Request from $offeredByName",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(
-                status == "PENDING"
-                    ? "Status: Pending"
-                    : "Status: ${status[0]}${status.substring(1).toLowerCase()}",
-              ),
-              children: [
-                _buildItemSection(
-                  label: "Your Item",
-                  title: requestedTitle,
-                  description: requestedDescription,
-                  price: requestedPrice,
-                  imageUrls: requestedImages,
-                ),
-                if (tradeType == "MONEY" && moneyOffer > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16, bottom: 12),
-                    child: Text("Offered Money: \$${moneyOffer.toStringAsFixed(2)}"),
-                  )
-                else if (tradeType == "ITEM")
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16, bottom: 12),
-                    child: Text("Sender wants to trade with an item."),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications_none, color: Colors.black),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NotificationPage(token: widget.token),
                   ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
+                );
+              },
+            ),
+          ],
+          bottom: const TabBar(
+            indicatorColor: Colors.green,
+            labelColor: Colors.green,
+            unselectedLabelColor: Colors.grey,
+            tabs: [
+              Tab(text: 'Pending'),
+              Tab(text: 'Accepted'),
+              Tab(text: 'Rejected'),
+            ],
+          ),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+          children: [
+            _buildRequestList(pendingRequests),
+            _buildAcceptedList(acceptedRequests),
+            _buildRequestList(rejectedRequests),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequestList(List<dynamic> requests) {
+    if (requests.isEmpty) {
+      return const Center(child: Text("No requests found."));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: requests.length,
+      itemBuilder: (context, i) {
+        final req = requests[i];
+        final requestId = req["requestId"];
+        final offeredByName = req["offeredByUserName"] ?? "Unknown";
+        final tradeType = req["tradeType"] ?? "MONEY";
+
+        final requestedTitle = req["requestedItemTitle"] ?? "??";
+        final requestedDescription = req["requestedItemDescription"] ?? "";
+        final requestedPrice = req["requestedItemPrice"]?.toString() ?? "0.0";
+        final requestedImages = req["requestedItemImages"] as List<dynamic>? ?? [];
+
+        return Card(
+          elevation: 0,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ExpansionTile(
+            title: Text(
+              "Request from $offeredByName",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text("Status: ${req["status"]}"),
+            children: [
+              _buildItemSection(
+                label: "Your Item",
+                title: requestedTitle,
+                description: requestedDescription,
+                price: requestedPrice,
+                imageUrls: requestedImages,
+              ),
+              if (tradeType == "MONEY")
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, bottom: 12),
+                  child: Text("Offered Money: \$${(req["moneyOffer"] as num).toStringAsFixed(2)}"),
+                )
+              else if (tradeType == "ITEM")
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, bottom: 12),
+                  child: Text("Sender wants to trade with an item."),
+                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (req["status"] == "PENDING")
                     TextButton(
-                      onPressed: status == "PENDING" ? () => _rejectRequest(requestId) : null,
+                      onPressed: () => _rejectRequest(requestId),
                       child: const Text("REJECT"),
                     ),
+                  if (req["status"] == "PENDING")
                     TextButton(
-                      onPressed: status == "PENDING"
-                          ? () => _showApproveDialog(
+                      onPressed: () => _showApproveDialog(
                         requestId,
                         tradeType: tradeType,
                         senderId: req["offeredByUserId"],
-                      )
-                          : null,
+                      ),
                       child: const Text("APPROVE"),
                     ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // For accepted requests, show extra offered item details
+  Widget _buildAcceptedList(List<dynamic> requests) {
+    if (requests.isEmpty) {
+      return const Center(child: Text("No accepted requests found."));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: requests.length,
+      itemBuilder: (context, i) {
+        final req = requests[i];
+        final offeredByName = req["offeredByUserName"] ?? "Unknown";
+        final tradeType = req["tradeType"] ?? "MONEY";
+        final requestedTitle = req["requestedItemTitle"] ?? "??";
+        final requestedDescription = req["requestedItemDescription"] ?? "";
+        final requestedPrice = req["requestedItemPrice"]?.toString() ?? "0.0";
+        final requestedImages = req["requestedItemImages"] as List<dynamic>? ?? [];
+
+        final offeredItemTitle = req["offeredItemTitle"] ?? "";
+        final offeredItemDescription = req["offeredItemDescription"] ?? "";
+        final offeredItemPrice = req["offeredItemPrice"]?.toString() ?? "";
+        final offeredItemImages = req["offeredItemImages"] as List<dynamic>? ?? [];
+
+        return Card(
+          elevation: 0,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ExpansionTile(
+            title: Text(
+              "Accepted: Request from $offeredByName",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text("Status: ACCEPTED"),
+            children: [
+              _buildItemSection(
+                label: "Your Item",
+                title: requestedTitle,
+                description: requestedDescription,
+                price: requestedPrice,
+                imageUrls: requestedImages,
+              ),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Offered Item Details",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Text("Title: $offeredItemTitle"),
+                    const SizedBox(height: 4),
+                    Text("Description: $offeredItemDescription"),
+                    const SizedBox(height: 4),
+                    Text("Price: \$$offeredItemPrice"),
+                    const SizedBox(height: 8),
+                    _buildImageSlideshow(offeredItemImages),
                   ],
                 ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -302,8 +397,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
               child: Image.network(
                 url,
                 fit: BoxFit.cover,
-                errorBuilder: (ctx, e, stack) =>
-                const Center(child: Text("Error")),
+                errorBuilder: (ctx, e, stack) => const Center(child: Text("Error")),
               ),
             ),
           );
