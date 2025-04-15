@@ -19,7 +19,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
 
-  // We'll store the selected province in a string variable instead of a TextField.
   final List<String> _provinceList = [
     'Western',
     'Central',
@@ -31,7 +30,7 @@ class _SignUpPageState extends State<SignUpPage> {
     'Uva',
     'North-Central',
   ];
-  String _selectedProvince = 'Western'; // Default selection
+  String _selectedProvince = 'Western';
 
   static const String BASE_URL = "http://10.0.2.2:8080";
 
@@ -64,7 +63,6 @@ class _SignUpPageState extends State<SignUpPage> {
     final city = _cityController.text.trim();
     final province = _selectedProvince;
 
-    // Show a loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -86,7 +84,7 @@ class _SignUpPageState extends State<SignUpPage> {
         }),
       );
 
-      Navigator.pop(context); // close the progress indicator dialog
+      Navigator.pop(context);
 
       if (response.statusCode == 200) {
         await showDialog(
@@ -102,7 +100,6 @@ class _SignUpPageState extends State<SignUpPage> {
             ],
           ),
         );
-        // Navigate to sign-in screen
         Navigator.pushReplacementNamed(context, '/signin');
       } else {
         final error = jsonDecode(response.body);
@@ -140,6 +137,16 @@ class _SignUpPageState extends State<SignUpPage> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    "images/signup.jpg",
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
                 const Text(
                   "Create Account",
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
@@ -149,7 +156,6 @@ class _SignUpPageState extends State<SignUpPage> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Full Name (full width)
                       TextFormField(
                         controller: _nameController,
                         decoration: _inputDecoration('Full Name'),
@@ -159,7 +165,6 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Email (full width)
                       TextFormField(
                         controller: _emailController,
                         decoration: _inputDecoration('Email'),
@@ -169,7 +174,6 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Row 1: Phone + City
                       Row(
                         children: [
                           Expanded(
@@ -198,7 +202,6 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Row 2: Province (Dropdown) + Password
                       Row(
                         children: [
                           Expanded(
@@ -216,7 +219,8 @@ class _SignUpPageState extends State<SignUpPage> {
                                   _selectedProvince = val ?? 'Western';
                                 });
                               },
-                              validator: (value) => (value == null || value.isEmpty)
+                              validator: (value) =>
+                              (value == null || value.isEmpty)
                                   ? 'Select a province'
                                   : null,
                             ),
@@ -227,7 +231,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               controller: _passwordController,
                               obscureText: true,
                               decoration: _inputDecoration('Password'),
-                              validator: (value) => (value == null || value.isEmpty)
+                              validator: (value) =>
+                              (value == null || value.isEmpty)
                                   ? 'Enter a password'
                                   : null,
                             ),
@@ -236,31 +241,33 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Address (single big text field)
                       TextFormField(
                         controller: _addressController,
                         decoration: _inputDecoration('Address'),
                         validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Enter your address' : null,
+                        (value == null || value.isEmpty)
+                            ? 'Enter your address'
+                            : null,
                       ),
                       const SizedBox(height: 24),
 
-                      // Sign Up button
                       ElevatedButton(
                         onPressed: _signUp,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 40, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Text('Sign Up'),
                       ),
                       const SizedBox(height: 16),
 
-                      // Link to sign in
                       GestureDetector(
-                        onTap: () => Navigator.pushReplacementNamed(context, '/signin'),
+                        onTap: () =>
+                            Navigator.pushReplacementNamed(context, '/signin'),
                         child: const Text(
                           "Already have an account? Sign In",
                           style: TextStyle(color: Colors.blue),

@@ -32,4 +32,6 @@ flutter:
   assets:
     - images/welcome.png
     - images/default_profile.png
+    - images/signup.jpg
+    - images/signin.jpg
 

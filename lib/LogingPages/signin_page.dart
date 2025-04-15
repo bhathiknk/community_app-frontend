@@ -112,6 +112,15 @@ class _SignInPageState extends State<SignInPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    "images/signin.jpg",
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 const Text(
                   "Welcome Back",
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
@@ -140,13 +149,12 @@ class _SignInPageState extends State<SignInPage> {
                         onPressed: _signIn,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
-                          foregroundColor: Colors.white, // <-- Button text color
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-
                         child: const Text('Sign In'),
                       ),
                       const SizedBox(height: 16),
