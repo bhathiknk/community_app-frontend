@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'MainScreens/HomePage.dart';
 import 'NotificationPage.dart';
 import 'SenderItemSelectionPage.dart';
 
@@ -21,6 +22,15 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   static const String BASE_URL = "http://10.0.2.2:8080";
   bool _isLoading = false;
   List<dynamic> _detailedRequests = [];
+
+  // WillPopScope fix
+  Future<bool> _onWillPop() async {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage(token: widget.token)),
+    );
+    return false;
+  }
 
   @override
   void initState() {
@@ -46,7 +56,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         });
       } else {
         final msg = jsonDecode(resp.body)["message"] ?? "Failed to load requests";
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -58,7 +69,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   Future<void> _approveRequest(String requestId, String selectedItemId) async {
     try {
       final resp = await http.post(
-        Uri.parse("$BASE_URL/api/trade/requests/$requestId/approve?selectedItemId=$selectedItemId"),
+        Uri.parse(
+            "$BASE_URL/api/trade/requests/$requestId/approve?selectedItemId=$selectedItemId"),
         headers: {
           "Authorization": "Bearer ${widget.token}",
           "Content-Type": "application/json",
@@ -114,8 +126,10 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       if (resp.statusCode == 200) {
         return jsonDecode(resp.body) as List;
       } else {
-        final msg = jsonDecode(resp.body)["message"] ?? "Failed to load sender's items";
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        final msg =
+            jsonDecode(resp.body)["message"] ?? "Failed to load sender's items";
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -124,7 +138,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
     return [];
   }
 
-  void _showApproveDialog(String requestId, {required String tradeType, required String senderId}) async {
+  void _showApproveDialog(String requestId,
+      {required String tradeType, required String senderId}) async {
     if (tradeType == "ITEM") {
       final senderItems = await _fetchSenderItems(senderId);
       final selectedItemId = await Navigator.push<String>(
@@ -143,7 +158,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   }
 
   /// Displays a clean, attractive dialog for pending or rejected requests.
-  void _showRequestDetailsDialog(Map<String, dynamic> req, {required bool showActions}) {
+  void _showRequestDetailsDialog(Map<String, dynamic> req,
+      {required bool showActions}) {
     final requestId = req["requestId"];
     final offeredByName = req["offeredByUserName"] ?? "Unknown";
     final tradeType = req["tradeType"] ?? "MONEY";
@@ -158,8 +174,10 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         return Dialog(
           backgroundColor: Colors.white,
           elevation: 8,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          insetPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -242,7 +260,6 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                         ),
                       ],
                     )
-
                 ],
               ),
             ),
@@ -273,8 +290,10 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         return Dialog(
           backgroundColor: Colors.white,
           elevation: 8,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          insetPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -353,53 +372,70 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   @override
   Widget build(BuildContext context) {
     // Filter requests based on status.
-    final pendingRequests = _detailedRequests.where((req) => req["status"] == "PENDING").toList();
-    final acceptedRequests = _detailedRequests.where((req) => req["status"] == "ACCEPTED").toList();
-    final rejectedRequests = _detailedRequests.where((req) => req["status"] == "REJECTED").toList();
+    final pendingRequests =
+    _detailedRequests.where((req) => req["status"] == "PENDING").toList();
+    final acceptedRequests =
+    _detailedRequests.where((req) => req["status"] == "ACCEPTED").toList();
+    final rejectedRequests =
+    _detailedRequests.where((req) => req["status"] == "REJECTED").toList();
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFB3D1B9),
-        appBar: AppBar(
-          title: const Text(
-            "Incoming Trade Requests",
-            style: TextStyle(color: Colors.black),
-          ),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_none, color: Colors.black),
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          backgroundColor: const Color(0xFFB3D1B9),
+          appBar: AppBar(
+            title: const Text(
+              "Incoming Trade Requests",
+              style: TextStyle(color: Colors.black),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => NotificationPage(token: widget.token),
+                    builder: (context) => HomePage(token: widget.token),
                   ),
                 );
               },
             ),
-          ],
-          bottom: const TabBar(
-            indicatorColor: Colors.green,
-            labelColor: Colors.green,
-            unselectedLabelColor: Colors.grey,
-            tabs: [
-              Tab(text: 'Pending'),
-              Tab(text: 'Accepted'),
-              Tab(text: 'Rejected'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.black),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationPage(token: widget.token),
+                    ),
+                  );
+                },
+              ),
+            ],
+            bottom: const TabBar(
+              indicatorColor: Colors.green,
+              labelColor: Colors.green,
+              unselectedLabelColor: Colors.grey,
+              tabs: [
+                Tab(text: 'Pending'),
+                Tab(text: 'Accepted'),
+                Tab(text: 'Rejected'),
+              ],
+            ),
+          ),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+            children: [
+              _buildRequestList(pendingRequests, showActions: true),
+              _buildAcceptedList(acceptedRequests),
+              _buildRequestList(rejectedRequests, showActions: false),
             ],
           ),
-        ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-          children: [
-            _buildRequestList(pendingRequests, showActions: true),
-            _buildAcceptedList(acceptedRequests),
-            _buildRequestList(rejectedRequests, showActions: false),
-          ],
         ),
       ),
     );
@@ -428,7 +464,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
             subtitle: Text("Status: ${req["status"]}"),
             trailing: IconButton(
               icon: const Icon(Icons.open_in_new),
-              onPressed: () => _showRequestDetailsDialog(req, showActions: showActions),
+              onPressed: () =>
+                  _showRequestDetailsDialog(req, showActions: showActions),
             ),
           ),
         );
