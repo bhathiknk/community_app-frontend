@@ -8,6 +8,7 @@ import '../MyItemsPage.dart';
 import '../TradeItemRequestPage.dart';
 import '../bottom_nav_bar.dart';
 
+
 class HomePage extends StatefulWidget {
   final String token;
 
@@ -75,7 +76,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      print("Error fetching profile image: $e");
+      debugPrint("Error fetching profile image: $e");
     }
   }
 
@@ -120,7 +121,7 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.black,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 5),
 
             // Profile card
             _buildProfileCard(profileImage),
@@ -129,7 +130,7 @@ class _HomePageState extends State<HomePage> {
             // The rest of the content takes the remaining space
             Expanded(
               child: DefaultTabController(
-                length: 2,
+                length: 1,
                 child: Column(
                   children: [
                     // The top TabBar
@@ -148,7 +149,7 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 2),
 
                     // The content for each tab
                     Expanded(
@@ -247,7 +248,7 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 children: [
                   CircleAvatar(
-                    radius: 50,
+                    radius: 40,
                     backgroundImage: (profileImage != null && profileImage.isNotEmpty)
                         ? NetworkImage(profileImage)
                         : const AssetImage("images/default_profile.png") as ImageProvider,
@@ -265,9 +266,8 @@ class _HomePageState extends State<HomePage> {
                   _buildRatingSection(),
                   const SizedBox(height: 6),
                   const Divider(thickness: 1, height: 20, color: Colors.black26),
-                  _glassInfoRow(Icons.email, "Email", _profile?["email"]),
-                  _glassInfoRow(Icons.phone, "Phone", _profile?["phone"]),
-                  _glassInfoRow(Icons.home, "Address", _profile?["address"]),
+                  // Instead of listing them one by one, arrange them in side-by-side pairs.
+                  _buildProfileDetails(),
                 ],
               ),
             ),
@@ -309,8 +309,36 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // A method to display email, phone, city, province, address in pairs (side by side).
+  Widget _buildProfileDetails() {
+    return Column(
+      children: [
+              _glassInfoRow(Icons.email, "Email", _profile?["email"]),
+
+            const SizedBox(width: 1),
+              _glassInfoRow(Icons.phone, "Phone", _profile?["phone"]),
+
+        const SizedBox(height: 1),
+        Row(
+          children: [
+            Expanded(
+              child: _glassInfoRow(Icons.location_city, "City", _profile?["city"]),
+            ),
+            const SizedBox(width: 1),
+            Expanded(
+              child: _glassInfoRow(Icons.map, "Province", _profile?["province"]),
+            ),
+          ],
+        ),
+        const SizedBox(height: 1),
+        // single wide row for address
+        _glassInfoRow(Icons.home, "Address", _profile?["address"]),
+      ],
+    );
+  }
+
   Widget _buildRatingSection() {
-    double ratingValue = 4.5;
+    double ratingValue = 4.5; // hard-coded example
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -334,7 +362,7 @@ class _HomePageState extends State<HomePage> {
               );
             }),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 2),
           // Rating text
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,13 +454,13 @@ class _HomePageState extends State<HomePage> {
         children: [
           // Container with borderRadius
           Container(
-            width: 70,
-            height: 70,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.rectangle,
-              borderRadius: BorderRadius.circular(16), // ✅ Added border radius
-              boxShadow: [
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
                 BoxShadow(
                   color: Colors.black12,
                   blurRadius: 4,
@@ -456,7 +484,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
 
   Widget _buildGrid(List<Widget> items) {
     return GridView.count(

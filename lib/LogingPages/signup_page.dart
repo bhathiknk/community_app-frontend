@@ -17,6 +17,21 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
+
+  // We'll store the selected province in a string variable instead of a TextField.
+  final List<String> _provinceList = [
+    'Western',
+    'Central',
+    'Southern',
+    'North-Western',
+    'Sabaragamuva',
+    'Northern',
+    'Eastern',
+    'Uva',
+    'North-Central',
+  ];
+  String _selectedProvince = 'Western'; // Default selection
 
   static const String BASE_URL = "http://10.0.2.2:8080";
 
@@ -44,9 +59,12 @@ class _SignUpPageState extends State<SignUpPage> {
     final fullName = _nameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
-    final password = _passwordController.text;
+    final password = _passwordController.text.trim();
     final address = _addressController.text.trim();
+    final city = _cityController.text.trim();
+    final province = _selectedProvince;
 
+    // Show a loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -61,12 +79,14 @@ class _SignUpPageState extends State<SignUpPage> {
           "fullName": fullName,
           "email": email,
           "phone": phone,
-          "password": password,
           "address": address,
+          "password": password,
+          "city": city,
+          "province": province,
         }),
       );
 
-      Navigator.pop(context);
+      Navigator.pop(context); // close the progress indicator dialog
 
       if (response.statusCode == 200) {
         await showDialog(
@@ -82,7 +102,7 @@ class _SignUpPageState extends State<SignUpPage> {
             ],
           ),
         );
-
+        // Navigate to sign-in screen
         Navigator.pushReplacementNamed(context, '/signin');
       } else {
         final error = jsonDecode(response.body);
@@ -114,10 +134,10 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFB3D1B9),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
+      body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
                 const Text(
@@ -129,44 +149,103 @@ class _SignUpPageState extends State<SignUpPage> {
                   key: _formKey,
                   child: Column(
                     children: [
+                      // Full Name (full width)
                       TextFormField(
                         controller: _nameController,
                         decoration: _inputDecoration('Full Name'),
-                        validator: (value) => value == null || value.isEmpty ? 'Enter your name' : null,
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Enter your name'
+                            : null,
                       ),
                       const SizedBox(height: 16),
 
+                      // Email (full width)
                       TextFormField(
                         controller: _emailController,
                         decoration: _inputDecoration('Email'),
-                        validator: (value) => value == null || value.isEmpty ? 'Enter your email' : null,
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Enter your email'
+                            : null,
                       ),
                       const SizedBox(height: 16),
 
-                      TextFormField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration: _inputDecoration('Phone Number'),
-                        validator: (value) => value == null || value.isEmpty ? 'Enter your phone' : null,
+                      // Row 1: Phone + City
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              decoration: _inputDecoration('Phone Number'),
+                              validator: (value) =>
+                              (value == null || value.isEmpty)
+                                  ? 'Enter your phone'
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _cityController,
+                              decoration: _inputDecoration('City'),
+                              validator: (value) =>
+                              (value == null || value.isEmpty)
+                                  ? 'Enter your city'
+                                  : null,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 
+                      // Row 2: Province (Dropdown) + Password
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedProvince,
+                              decoration: _inputDecoration('Province'),
+                              items: _provinceList.map((p) {
+                                return DropdownMenuItem<String>(
+                                  value: p,
+                                  child: Text(p),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedProvince = val ?? 'Western';
+                                });
+                              },
+                              validator: (value) => (value == null || value.isEmpty)
+                                  ? 'Select a province'
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _passwordController,
+                              obscureText: true,
+                              decoration: _inputDecoration('Password'),
+                              validator: (value) => (value == null || value.isEmpty)
+                                  ? 'Enter a password'
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Address (single big text field)
                       TextFormField(
                         controller: _addressController,
-                        maxLines: 2,
                         decoration: _inputDecoration('Address'),
-                        validator: (value) => value == null || value.isEmpty ? 'Enter your address' : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: _inputDecoration('Password'),
-                        validator: (value) => value == null || value.isEmpty ? 'Enter a password' : null,
+                        validator: (value) =>
+                        (value == null || value.isEmpty) ? 'Enter your address' : null,
                       ),
                       const SizedBox(height: 24),
 
+                      // Sign Up button
                       ElevatedButton(
                         onPressed: _signUp,
                         style: ElevatedButton.styleFrom(
@@ -179,13 +258,14 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
 
+                      // Link to sign in
                       GestureDetector(
                         onTap: () => Navigator.pushReplacementNamed(context, '/signin'),
                         child: const Text(
                           "Already have an account? Sign In",
                           style: TextStyle(color: Colors.blue),
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ),
