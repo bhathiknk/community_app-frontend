@@ -60,6 +60,8 @@ class _TradeItemPageState extends State<TradeItemPage> {
     // build query string e.g. /api/trade?search=xxx&categoryId=yyy
     String url = "$BASE_URL/api/trade";
     List<String> params = [];
+    // If your backend also handles "search" in the query, you can append here.
+    // Otherwise, remove the code below if not supported by your backend.
     if (search != null && search.isNotEmpty) {
       params.add("search=$search");
     }
@@ -212,7 +214,7 @@ class _TradeItemPageState extends State<TradeItemPage> {
       backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text("Trade Items"),
+        title: const Text("Trade Items", style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         actions: [
           TextButton.icon(
@@ -238,10 +240,12 @@ class _TradeItemPageState extends State<TradeItemPage> {
           final status = item["status"] ?? "Unknown";
           final images = item["images"] as List<dynamic>?;
 
-          // Wrap the card in a GestureDetector so we can navigate to details
+          // NEW: read the owner's profile image
+          final ownerProfileImg = item["ownerProfileImage"] as String?;
+
           return GestureDetector(
             onTap: () {
-              // Navigate to a detail page
+              // Navigate to detail page
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -267,6 +271,31 @@ class _TradeItemPageState extends State<TradeItemPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Owner profile + title row
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundImage: (ownerProfileImg != null && ownerProfileImg.isNotEmpty)
+                              ? NetworkImage(ownerProfileImg)
+                              : const AssetImage("images/default_profile.png") as ImageProvider,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
                     // Image slider
                     if (images != null && images.isNotEmpty)
                       CarouselSlider(
@@ -299,8 +328,7 @@ class _TradeItemPageState extends State<TradeItemPage> {
                           enableInfiniteScroll: false,
                           aspectRatio: 16 / 9,
                           autoPlayInterval: const Duration(seconds: 3),
-                          autoPlayAnimationDuration:
-                          const Duration(milliseconds: 800),
+                          autoPlayAnimationDuration: const Duration(milliseconds: 800),
                           viewportFraction: 0.8,
                         ),
                       )
@@ -312,17 +340,8 @@ class _TradeItemPageState extends State<TradeItemPage> {
                           child: Text("No images"),
                         ),
                       ),
-                    const SizedBox(height: 12),
 
-                    // Title
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
 
                     // Price
                     Text("Price: \$$price"),
