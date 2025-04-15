@@ -8,7 +8,6 @@ import '../MyItemsPage.dart';
 import '../TradeItemRequestPage.dart';
 import '../bottom_nav_bar.dart';
 
-
 class HomePage extends StatefulWidget {
   final String token;
 
@@ -107,10 +106,9 @@ class _HomePageState extends State<HomePage> {
           style: const TextStyle(color: Colors.red),
         ),
       )
-          : Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16),
+          : SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             // Welcome text
             Text(
@@ -121,98 +119,101 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.black,
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 8),
 
             // Profile card
             _buildProfileCard(profileImage),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-            // The rest of the content takes the remaining space
-            Expanded(
-              child: DefaultTabController(
-                length: 1,
-                child: Column(
-                  children: [
-                    // The top TabBar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const TabBar(
-                        indicatorColor: Colors.green,
-                        labelColor: Colors.green,
-                        unselectedLabelColor: Colors.grey,
-                        tabs: [
-                          Tab(text: 'Trade'),
-                          Tab(text: 'Donations'),
-                        ],
-                      ),
+            // Tab section
+            DefaultTabController(
+              length: 2,
+              child: Column(
+                children: [
+                  // The top TabBar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const SizedBox(height: 2),
-
-                    // The content for each tab
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          // Trade tab
-                          SingleChildScrollView(
-                            child: _buildGrid([
-                              _buildActionButton(
-                                "Add Item",
-                                Icons.add_box,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => AddItemPage(token: widget.token),
-                                    ),
-                                  );
-                                },
-                              ),
-                              _buildActionButton(
-                                "My Items",
-                                Icons.inventory,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => MyItemsPage(token: widget.token),
-                                    ),
-                                  );
-                                },
-                              ),
-                              _buildActionButton(
-                                "Trade Request",
-                                Icons.swap_horiz,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => TradeItemRequestPage(
-                                        token: widget.token,
-                                        currentUserId: _currentUserId,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ]),
-                          ),
-
-                          // Donations tab
-                          SingleChildScrollView(
-                            child: _buildGrid([
-                              _buildActionButton("Add Donation", Icons.volunteer_activism),
-                              _buildActionButton("My Donations", Icons.card_giftcard),
-                              _buildActionButton("Donated Items", Icons.redeem),
-                            ]),
-                          ),
-                        ],
-                      ),
+                    child: const TabBar(
+                      indicatorColor: Colors.green,
+                      labelColor: Colors.green,
+                      unselectedLabelColor: Colors.grey,
+                      tabs: [
+                        Tab(text: 'Trade'),
+                        Tab(text: 'Donations'),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // TabBarView
+                  Container(
+                    // Give the tab content a bounded height.
+                    // If there's more content, it will scroll.
+                    height: 350,
+                    child: TabBarView(
+                      children: [
+                        // Trade tab
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildGrid([
+                            _buildActionButton(
+                              "Add Item",
+                              Icons.add_box,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddItemPage(token: widget.token),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildActionButton(
+                              "My Items",
+                              Icons.inventory,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MyItemsPage(token: widget.token),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildActionButton(
+                              "Trade Request",
+                              Icons.swap_horiz,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => TradeItemRequestPage(
+                                      token: widget.token,
+                                      currentUserId: _currentUserId,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ]),
+                        ),
+
+                        // Donations tab
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildGrid([
+                            _buildActionButton("Add Donation", Icons.volunteer_activism),
+                            _buildActionButton("My Donations", Icons.card_giftcard),
+                            _buildActionButton("Donated Items", Icons.redeem),
+                          ]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -222,7 +223,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // A more compact profile card
   Widget _buildProfileCard(String? profileImage) {
     return Stack(
       children: [
@@ -266,7 +266,6 @@ class _HomePageState extends State<HomePage> {
                   _buildRatingSection(),
                   const SizedBox(height: 6),
                   const Divider(thickness: 1, height: 20, color: Colors.black26),
-                  // Instead of listing them one by one, arrange them in side-by-side pairs.
                   _buildProfileDetails(),
                 ],
               ),
@@ -309,36 +308,32 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // A method to display email, phone, city, province, address in pairs (side by side).
   Widget _buildProfileDetails() {
     return Column(
       children: [
-              _glassInfoRow(Icons.email, "Email", _profile?["email"]),
-
-            const SizedBox(width: 1),
-              _glassInfoRow(Icons.phone, "Phone", _profile?["phone"]),
-
-        const SizedBox(height: 1),
+        _glassInfoRow(Icons.email, "Email", _profile?["email"]),
+        const SizedBox(height: 4),
+        _glassInfoRow(Icons.phone, "Phone", _profile?["phone"]),
+        const SizedBox(height: 4),
         Row(
           children: [
             Expanded(
               child: _glassInfoRow(Icons.location_city, "City", _profile?["city"]),
             ),
-            const SizedBox(width: 1),
+            const SizedBox(width: 4),
             Expanded(
               child: _glassInfoRow(Icons.map, "Province", _profile?["province"]),
             ),
           ],
         ),
-        const SizedBox(height: 1),
-        // single wide row for address
+        const SizedBox(height: 4),
         _glassInfoRow(Icons.home, "Address", _profile?["address"]),
       ],
     );
   }
 
   Widget _buildRatingSection() {
-    double ratingValue = 4.5; // hard-coded example
+    double ratingValue = 4.5; // Hard-coded example rating
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -362,7 +357,7 @@ class _HomePageState extends State<HomePage> {
               );
             }),
           ),
-          const SizedBox(width: 2),
+          const SizedBox(width: 6),
           // Rating text
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,13 +410,16 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.greenAccent.shade100, Colors.green.shade400],
+                    colors: [
+                      Colors.greenAccent.shade100,
+                      Colors.green.shade400,
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 20, color: Colors.white),
+                child: Icon(icon, size: 15, color: Colors.white),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -434,7 +432,7 @@ class _HomePageState extends State<HomePage> {
                     Text(value ?? '-',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 15,
                             color: Colors.white)),
                   ],
                 ),
@@ -452,7 +450,6 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Container with borderRadius
           Container(
             width: 60,
             height: 60,
