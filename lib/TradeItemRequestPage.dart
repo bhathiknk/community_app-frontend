@@ -55,7 +55,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
           _detailedRequests = data;
         });
       } else {
-        final msg = jsonDecode(resp.body)["message"] ?? "Failed to load requests";
+        final msg =
+            jsonDecode(resp.body)["message"] ?? "Failed to load requests";
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(msg)));
       }
@@ -173,14 +174,15 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       builder: (context) {
         return Dialog(
           backgroundColor: Colors.white,
-          elevation: 8,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 10,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           insetPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +206,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                       )
                     ],
                   ),
-                  const Divider(),
+                  const Divider(thickness: 1.3),
                   const SizedBox(height: 8),
                   _buildItemSection(
                     label: "Your Item",
@@ -221,7 +223,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                     )
                   else if (tradeType == "ITEM")
                     const Text(
-                      "Sender wants to trade with an item.",
+                      "Sender wants to trade with an item instead of money.",
                       style: TextStyle(fontSize: 16),
                     ),
                   const SizedBox(height: 16),
@@ -235,13 +237,18 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                             _rejectRequest(requestId);
                           },
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            side: BorderSide.none, // Removes the outline
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          child: const Text("REJECT"),
+                          child: const Text(
+                            "REJECT",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () {
                             Navigator.of(context).pop();
@@ -253,10 +260,15 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
-                            foregroundColor: Colors.white, // Text color
-                            side: BorderSide.none,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          child: const Text("APPROVE"),
+                          child: const Text(
+                            "APPROVE",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ],
                     )
@@ -286,86 +298,220 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
 
     showDialog(
       context: context,
+      barrierDismissible: true, // allows tapping outside to close
       builder: (context) {
         return Dialog(
-          backgroundColor: Colors.white,
-          elevation: 8,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          insetPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header with title and close button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          "Accepted Request from $offeredByName",
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+          backgroundColor: Colors.transparent, // Transparent for custom shapes
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Main gradient background container
+              Container(
+                margin: const EdgeInsets.only(top: 60),
+                // leaves space for the circle
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFB3D1B9), Colors.green],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 70, 20, 20),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title
+                          Text(
+                            "Accepted Request from $offeredByName",
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
+                          const Divider(
+                            thickness: 1.3,
+                            color: Colors.white54,
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Your Item
+                          _buildColoredSection(
+                            "Your Item",
+                            _buildItemSection(
+                              label: "Item",
+                              title: requestedTitle,
+                              description: requestedDescription,
+                              price: requestedPrice,
+                              imageUrls: requestedImages,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Offered Item Header
+                          _buildSectionHeader("Offered Item Details"),
+                          const SizedBox(height: 8),
+
+                          // Offered Item Fields
+                          Text(
+                            "Title: $offeredItemTitle",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Description: $offeredItemDescription",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Price: \$$offeredItemPrice",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildImageSlideshow(offeredItemImages),
+                          const SizedBox(height: 16),
+
+                          // Sender contact
+                          _buildSectionHeader("Sender Contact Information"),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Name: $offeredByName",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            "Email: $senderEmail",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            "Phone: $senderPhone",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            "Address: $senderAddress",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(context).pop(),
-                      )
-                    ],
+                    ),
                   ),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  _buildItemSection(
-                    label: "Your Item",
-                    title: requestedTitle,
-                    description: requestedDescription,
-                    price: requestedPrice,
-                    imageUrls: requestedImages,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Offered Item Details",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Title: $offeredItemTitle",
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Description: $offeredItemDescription",
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Price: \$$offeredItemPrice",
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildImageSlideshow(offeredItemImages),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Sender Contact Information",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text("Name: $offeredByName", style: const TextStyle(fontSize: 16)),
-                  Text("Email: $senderEmail", style: const TextStyle(fontSize: 16)),
-                  Text("Phone: $senderPhone", style: const TextStyle(fontSize: 16)),
-                  Text("Address: $senderAddress", style: const TextStyle(fontSize: 16)),
-                ],
+                ),
               ),
-            ),
+
+              // Circle Avatar or Icon at the top (floating effect)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.transparent,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [Colors.green, Colors.teal],
+                        center: Alignment.center,
+                        radius: 0.9,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      size: 56,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Close button in the top-right corner (over the avatar area)
+              Positioned(
+                right: 0,
+                top: 8,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  // Helper for coloring sections
+  Widget _buildColoredSection(String title, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: child,
+        ),
+      ],
+    );
+  }
+
+  // Helper for section headers
+  Widget _buildSectionHeader(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
     );
   }
 
@@ -384,16 +530,16 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       child: DefaultTabController(
         length: 3,
         child: Scaffold(
-          backgroundColor: const Color(0xFFB3D1B9),
+          backgroundColor: const Color(0xFFECF3EC),
           appBar: AppBar(
             title: const Text(
               "Incoming Trade Requests",
               style: TextStyle(color: Colors.black),
             ),
             backgroundColor: Colors.white,
-            elevation: 0,
+            elevation: 2,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () {
                 Navigator.pushReplacement(
                   context,
@@ -433,7 +579,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
             children: [
               _buildRequestList(pendingRequests, showActions: true),
               _buildAcceptedList(acceptedRequests),
-              _buildRequestList(rejectedRequests, showActions: false),
+              _buildRejectedList(rejectedRequests),
             ],
           ),
         ),
@@ -441,7 +587,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
     );
   }
 
-  // List builder that shows each request with an open icon.
+  // List builder for pending requests
   Widget _buildRequestList(List<dynamic> requests, {required bool showActions}) {
     if (requests.isEmpty) {
       return const Center(child: Text("No requests found."));
@@ -452,20 +598,36 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       itemBuilder: (context, i) {
         final req = requests[i];
         final offeredByName = req["offeredByUserName"] ?? "Unknown";
-        return Card(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            title: Text(
-              "Request from $offeredByName",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: Card(
+            color: Colors.white,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            subtitle: Text("Status: ${req["status"]}"),
-            trailing: IconButton(
-              icon: const Icon(Icons.open_in_new),
-              onPressed: () =>
-                  _showRequestDetailsDialog(req, showActions: showActions),
+            child: ListTile(
+              contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              leading: CircleAvatar(
+                backgroundColor: Colors.green.withOpacity(0.1),
+                child: const Icon(Icons.swap_horiz, color: Colors.green),
+              ),
+              title: Text(
+                "Request from $offeredByName",
+                style:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text("Status: ${req["status"]}"),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.open_in_new),
+                color: Colors.grey[700],
+                onPressed: () =>
+                    _showRequestDetailsDialog(req, showActions: showActions),
+              ),
             ),
           ),
         );
@@ -484,21 +646,85 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       itemBuilder: (context, i) {
         final req = requests[i];
         final offeredByName = req["offeredByUserName"] ?? "Unknown";
-        return Card(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            title: Text(
-              "Accepted: Request from $offeredByName",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: Card(
+            color: Colors.white,
+            elevation: 2,
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              leading: CircleAvatar(
+                backgroundColor: Colors.blue.withOpacity(0.1),
+                child: const Icon(Icons.check_circle, color: Colors.blue),
+              ),
+              title: Text(
+                "Request from $offeredByName",
+                style:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              subtitle: const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text("Status: ACCEPTED"),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.open_in_new),
+                color: Colors.grey[700],
+                onPressed: () {
+                  _showAcceptedRequestDetailsDialog(req);
+                },
+              ),
             ),
-            subtitle: const Text("Status: ACCEPTED"),
-            trailing: IconButton(
-              icon: const Icon(Icons.open_in_new),
-              onPressed: () {
-                _showAcceptedRequestDetailsDialog(req);
-              },
+          ),
+        );
+      },
+    );
+  }
+
+  // Rejected requests list builder (red theme).
+  Widget _buildRejectedList(List<dynamic> requests) {
+    if (requests.isEmpty) {
+      return const Center(child: Text("No rejected requests found."));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: requests.length,
+      itemBuilder: (context, i) {
+        final req = requests[i];
+        final offeredByName = req["offeredByUserName"] ?? "Unknown";
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: Card(
+            color: Colors.white,
+            elevation: 2,
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              leading: CircleAvatar(
+                backgroundColor: Colors.red.withOpacity(0.1),
+                child: const Icon(Icons.cancel, color: Colors.red),
+              ),
+              title: Text(
+                "Request from $offeredByName",
+                style:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              subtitle: const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text("Status: REJECTED"),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.open_in_new),
+                color: Colors.red,
+                onPressed: () {
+                  // Even though it's rejected, we can still show the details
+                  _showRequestDetailsDialog(req, showActions: false);
+                },
+              ),
             ),
           ),
         );
@@ -524,14 +750,20 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         if (description.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text("Description: $description", style: const TextStyle(fontSize: 14)),
+            child: Text(
+              "Description: $description",
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
         if (price != "0.0")
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text("Price: \$$price", style: const TextStyle(fontSize: 14)),
+            child: Text(
+              "Price: \$$price",
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         _buildImageSlideshow(imageUrls),
       ],
     );
@@ -540,7 +772,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   // Utility widget for the horizontal image slideshow.
   Widget _buildImageSlideshow(List<dynamic> imageUrls) {
     if (imageUrls.isEmpty) {
-      return const Text("No images", style: TextStyle(fontSize: 14));
+      return const Text("No images available", style: TextStyle(fontSize: 14));
     }
     return SizedBox(
       height: 100,
@@ -554,18 +786,21 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              color: Colors.white,
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(3, 2)),
-              ],
+              color: Colors.grey[200],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
                 url,
                 fit: BoxFit.cover,
-                errorBuilder: (ctx, e, stack) =>
-                const Center(child: Text("Error", style: TextStyle(fontSize: 12))),
+                errorBuilder: (ctx, e, stack) => Container(
+                  color: Colors.redAccent.withOpacity(0.1),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    "Error",
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
               ),
             ),
           );

@@ -103,20 +103,20 @@ class _SignUpPageState extends State<SignUpPage> {
         Navigator.pushReplacementNamed(context, '/signin');
       } else {
         final error = jsonDecode(response.body);
-        _showErrorDialog(error["message"] ?? "Signup failed!");
+        _showError(error["message"] ?? "Signup failed. Try again.");
       }
     } catch (e) {
       Navigator.pop(context);
-      _showErrorDialog("Error: $e");
+      _showError("Network error. Please try again.");
     }
   }
 
-  void _showErrorDialog(String msg) {
+  void _showError(String message) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Error"),
-        content: Text(msg),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
