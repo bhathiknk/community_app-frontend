@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../ SettingsPage.dart';
 import '../AddItemPage.dart';
+import '../DonateItemAdd.dart';
+import '../MyDonateItems.dart';
 import '../MyItemsPage.dart';
 import '../TradeItemRequestPage.dart';
 import '../bottom_nav_bar.dart';
@@ -202,14 +204,46 @@ class _HomePageState extends State<HomePage> {
                         ),
 
                         // Donations tab
+                        // Donations tab
                         SingleChildScrollView(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _buildGrid([
-                            _buildActionButton("Add Donation", Icons.volunteer_activism),
-                            _buildActionButton("My Donations", Icons.card_giftcard),
-                            _buildActionButton("Donated Items", Icons.redeem),
+                            _buildActionButton(
+                              "Add Donation",
+                              Icons.volunteer_activism,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DonateItemAddPage(token: widget.token),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildActionButton(
+                              "My Donations",
+                              Icons.card_giftcard,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MyDonationsPage(token: widget.token),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildActionButton(
+                              "Donated Items",
+                              Icons.redeem,
+                              // Optionally: navigate to a "BrowseDonationsPage" that calls
+                              // GET /api/donations/active
+                              onTap: () {
+                                // ...some future "BrowseDonations" page
+                              },
+                            ),
                           ]),
                         ),
+
                       ],
                     ),
                   ),
