@@ -211,7 +211,7 @@ class _TradeItemPageState extends State<TradeItemPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFB3D1B9),
+      backgroundColor: Colors.teal.shade700,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text("Trade Items", style: TextStyle(color: Colors.black)),

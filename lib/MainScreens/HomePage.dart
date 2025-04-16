@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../ SettingsPage.dart';
 import '../AddItemPage.dart';
 import '../DonateItemAdd.dart';
+import '../DonationRequest.dart';
 import '../MyDonateItems.dart';
 import '../MyItemsPage.dart';
 import '../TradeItemRequestPage.dart';
@@ -87,7 +88,7 @@ class _HomePageState extends State<HomePage> {
     final profileImage = _profile?["profileImage"];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFB3D1B9),
+      backgroundColor: Colors.teal.shade700,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Home', style: TextStyle(color: Colors.black)),
@@ -233,12 +234,15 @@ class _HomePageState extends State<HomePage> {
                               },
                             ),
                             _buildActionButton(
-                              "Donated Items",
+                              "Donation Request",
                               Icons.redeem,
-                              // Optionally: navigate to a "BrowseDonationsPage" that calls
-                              // GET /api/donations/active
                               onTap: () {
-                                // ...some future "BrowseDonations" page
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DonationRequestPage(token: widget.token),
+                                  ),
+                                );
                               },
                             ),
                           ]),
@@ -507,7 +511,7 @@ class _HomePageState extends State<HomePage> {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Colors.black,
+              color: Colors.white,
             ),
             textAlign: TextAlign.center,
           )

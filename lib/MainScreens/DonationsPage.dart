@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../bottom_nav_bar.dart';
 
 /**
  * A page showing all donation items from other users.
- * Main card displays the first image, title, status, and short description.
- * When tapped, a near full-screen dialog opens with a clear slideshow of images,
- * donation details, and owner info (including profile data).
+ * Main card displays the first image (with a slideshow hint if more),
+ * title, status, and short description.
+ * When tapped, a near full-screen dialog opens with a clear slideshow,
+ * detailed donation info, owner info (with profile data), and a "Request Donation" button.
  */
 class DonationsPage extends StatefulWidget {
   final String token;
@@ -19,7 +21,6 @@ class DonationsPage extends StatefulWidget {
 class _DonationsPageState extends State<DonationsPage> {
   bool _isLoading = false;
   List<dynamic> _donations = [];
-
   static const String BASE_URL = "http://10.0.2.2:8080";
 
   @override
@@ -28,6 +29,8 @@ class _DonationsPageState extends State<DonationsPage> {
     _fetchOtherDonations();
   }
 
+  // Fetch all active donation items from others.
+  // ALGORITHM: Linear filtering – backend returns only donations from others.
   Future<void> _fetchOtherDonations() async {
     setState(() => _isLoading = true);
     try {
@@ -57,22 +60,14 @@ class _DonationsPageState extends State<DonationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.teal.shade700,
       appBar: AppBar(
+        automaticallyImplyLeading: false, // no back button
         title: const Text("All Donations"),
-        backgroundColor: Colors.teal.shade600,
+        backgroundColor: Colors.white,
       ),
       body: Stack(
         children: [
-          // Subtle gradient background
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.teal.shade50, Colors.teal.shade100],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _donations.isEmpty
@@ -87,40 +82,37 @@ class _DonationsPageState extends State<DonationsPage> {
           ),
         ],
       ),
+      bottomNavigationBar: BottomNavBar(selectedIndex: 2, token: widget.token),
     );
   }
 
+  // Builds a modern card for each donation item.
   Widget _buildDonationCard(dynamic donation) {
     final title = donation["title"] ?? "No Title";
     final description = donation["description"] ?? "";
     final images = donation["images"] as List<dynamic>? ?? [];
     final status = donation["status"] ?? "ACTIVE";
 
-    // Owner details
+    // Owner details (shown briefly on card)
     final ownerName = donation["ownerFullName"] ?? "Unknown";
-    final ownerPhone = donation["ownerPhone"] ?? "";
-    final ownerAddress = donation["ownerAddress"] ?? "";
-    final ownerCity = donation["ownerCity"] ?? "";
-    final ownerProvince = donation["ownerProvince"] ?? "";
-    final ownerProfile = donation["ownerProfileImage"] ?? ""; // URL
-
-    // Display first image; if multiple then show "+X more" overlay.
+    // We use only the first image in the card.
     final firstImage = images.isNotEmpty ? images.first : null;
     final extraImagesCount = images.length > 1 ? images.length - 1 : 0;
 
     return GestureDetector(
       onTap: () {
         _showDonationDialog(
+          donationId: donation["donationId"],
           title: title,
           description: description,
           status: status,
           images: images,
-          ownerName: ownerName,
-          ownerPhone: ownerPhone,
-          ownerAddress: ownerAddress,
-          ownerCity: ownerCity,
-          ownerProvince: ownerProvince,
-          ownerProfile: ownerProfile,
+          ownerName: donation["ownerFullName"] ?? "Unknown",
+          ownerPhone: donation["ownerPhone"] ?? "",
+          ownerAddress: donation["ownerAddress"] ?? "",
+          ownerCity: donation["ownerCity"] ?? "",
+          ownerProvince: donation["ownerProvince"] ?? "",
+          ownerProfile: donation["ownerProfileImage"] ?? "",
         );
       },
       child: Card(
@@ -129,14 +121,12 @@ class _DonationsPageState extends State<DonationsPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           height: 220,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Row(
               children: [
-                // Left side: Donation image with overlay and extra count indicator.
+                // Left: Image with gradient overlay and extra count indicator.
                 Expanded(
                   flex: 3,
                   child: Stack(
@@ -150,8 +140,6 @@ class _DonationsPageState extends State<DonationsPage> {
                       )
                           : Container(
                         color: Colors.grey.shade300,
-                        width: double.infinity,
-                        height: double.infinity,
                         child: const Icon(Icons.volunteer_activism, size: 60),
                       ),
                       Container(
@@ -182,7 +170,7 @@ class _DonationsPageState extends State<DonationsPage> {
                     ],
                   ),
                 ),
-                // Right side: donation information.
+                // Right: Donation info.
                 Expanded(
                   flex: 5,
                   child: Padding(
@@ -190,6 +178,7 @@ class _DonationsPageState extends State<DonationsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Title and Status
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -207,7 +196,9 @@ class _DonationsPageState extends State<DonationsPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: status == "DONATED" ? Colors.pink.shade200 : Colors.green.shade200,
+                                color: status == "DONATED"
+                                    ? Colors.pink.shade200
+                                    : Colors.green.shade200,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -246,9 +237,9 @@ class _DonationsPageState extends State<DonationsPage> {
     );
   }
 
-  /// Shows a near full-screen dialog with a clear slideshow of images,
-  /// donation details, and owner info.
+  // Open the near full-screen Donation Details Dialog.
   void _showDonationDialog({
+    required String donationId,
     required String title,
     required String description,
     required String status,
@@ -264,6 +255,7 @@ class _DonationsPageState extends State<DonationsPage> {
       context: context,
       builder: (context) {
         return _DonationDetailsDialog(
+          donationId: donationId,
           title: title,
           description: description,
           status: status,
@@ -274,15 +266,17 @@ class _DonationsPageState extends State<DonationsPage> {
           ownerCity: ownerCity,
           ownerProvince: ownerProvince,
           ownerProfile: ownerProfile,
+          token: widget.token,
         );
       },
     );
   }
 }
 
-// -------------------- Full-Screen Dialog with Slideshow -------------------- //
-
+///////////////////////////////////////////////////////////////////////////
+// Near full-screen Details Dialog with Slideshow and Request Button
 class _DonationDetailsDialog extends StatefulWidget {
+  final String donationId;
   final String title;
   final String description;
   final String status;
@@ -293,9 +287,10 @@ class _DonationDetailsDialog extends StatefulWidget {
   final String ownerCity;
   final String ownerProvince;
   final String ownerProfile;
-
+  final String token;
   const _DonationDetailsDialog({
     Key? key,
+    required this.donationId,
     required this.title,
     required this.description,
     required this.status,
@@ -306,6 +301,7 @@ class _DonationDetailsDialog extends StatefulWidget {
     required this.ownerCity,
     required this.ownerProvince,
     required this.ownerProfile,
+    required this.token,
   }) : super(key: key);
 
   @override
@@ -315,11 +311,55 @@ class _DonationDetailsDialog extends StatefulWidget {
 class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
+  bool _isRequesting = false;
+  final TextEditingController _messageCtrl = TextEditingController();
+
+  static const String BASE_URL = "http://10.0.2.2:8080";
 
   @override
   void dispose() {
     _pageController.dispose();
+    _messageCtrl.dispose();
     super.dispose();
+  }
+
+  // Function to send a donation request to the backend.
+  Future<void> _sendDonationRequest() async {
+    setState(() {
+      _isRequesting = true;
+    });
+    try {
+      final uri = Uri.parse("$BASE_URL/api/donation-requests");
+      final response = await http.post(
+        uri,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ${widget.token}"
+        },
+        body: jsonEncode({
+          "donationId": widget.donationId,
+          "message": _messageCtrl.text.trim(),
+        }),
+      );
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Donation request sent successfully.")),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Request failed: ${response.statusCode}")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      setState(() {
+        _isRequesting = false;
+      });
+    }
   }
 
   @override
@@ -341,7 +381,7 @@ class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
         ),
         child: Column(
           children: [
-            // Header with title and status
+            // Header with title
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -354,14 +394,10 @@ class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
               width: double.infinity,
               child: Text(
                 widget.title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
               ),
             ),
-            // Slideshow section with clear full images
+            // Slideshow section
             Container(
               height: 300,
               color: Colors.black12,
@@ -373,7 +409,6 @@ class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
                 itemCount: images.length,
                 itemBuilder: (context, index) {
                   final imageUrl = images[index];
-                  // Use BoxFit.contain for full clear display
                   return Container(
                     alignment: Alignment.center,
                     child: Image.network(
@@ -386,7 +421,6 @@ class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
                 },
               ),
             ),
-            // Dots indicator
             if (images.length > 1)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -405,33 +439,72 @@ class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
                   }),
                 ),
               ),
-            // Donation details
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Status chip
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: widget.status == "DONATED" ? Colors.pink.shade200 : Colors.green.shade200,
-                      borderRadius: BorderRadius.circular(12),
+            // Donation details and owner info
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: widget.status == "DONATED" ? Colors.pink.shade200 : Colors.green.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        widget.status,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
                     ),
-                    child: Text(
-                      widget.status,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.description,
+                      style: const TextStyle(fontSize: 16, color: Colors.black87),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    widget.description,
-                    style: const TextStyle(fontSize: 16, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 20),
-                  // Owner Info
-                  _buildOwnerSection(),
-                ],
+                    const SizedBox(height: 20),
+                    _buildOwnerSection(),
+                    const SizedBox(height: 20),
+                    // Request Donation Section
+                    if (!_isRequesting)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Request Donation",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _messageCtrl,
+                            decoration: const InputDecoration(
+                              labelText: "Message (Optional)",
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: ElevatedButton(
+                              onPressed: _sendDonationRequest,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal.shade700,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                              ),
+                              child: const Text(
+                                "Send Request",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      const Center(child: CircularProgressIndicator()),
+                  ],
+                ),
               ),
             ),
             // Footer button
@@ -444,10 +517,7 @@ class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
                 ),
-                child: const Text(
-                  "Close",
-                  style: TextStyle(fontSize: 16),
-                ),
+                child: const Text("Close", style: TextStyle(fontSize: 16)),
               ),
             ),
           ],
@@ -476,15 +546,13 @@ class _DonationDetailsDialogState extends State<_DonationDetailsDialog> {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          // Owner profile image
           CircleAvatar(
             radius: 30,
-            backgroundImage: (widget.ownerProfile.isNotEmpty)
+            backgroundImage: widget.ownerProfile.isNotEmpty
                 ? NetworkImage(widget.ownerProfile)
                 : const AssetImage("images/default_profile.png") as ImageProvider,
           ),
           const SizedBox(width: 12),
-          // Contact Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

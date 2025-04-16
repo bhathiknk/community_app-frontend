@@ -121,7 +121,7 @@ class _SignInPageState extends State<SignInPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFB3D1B9),
+      backgroundColor: Colors.teal.shade700,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Center(
@@ -142,7 +142,7 @@ class _SignInPageState extends State<SignInPage> {
                 // Title
                 const Text(
                   "Welcome Back",
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold,color: Colors.white)
                 ),
                 const SizedBox(height: 20),
 
@@ -190,7 +190,7 @@ class _SignInPageState extends State<SignInPage> {
                         onTap: () => Navigator.pushReplacementNamed(context, '/signup'),
                         child: const Text(
                           "Don’t have an account? Sign Up",
-                          style: TextStyle(color: Colors.blue),
+                          style: TextStyle(color: Colors.white),
                         ),
                       )
                     ],

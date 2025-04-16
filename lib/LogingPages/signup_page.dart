@@ -130,7 +130,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFB3D1B9),
+      backgroundColor: Colors.teal.shade700,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
