@@ -107,9 +107,10 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         title: const Text("Donation Requests"),
-        backgroundColor: Colors.teal.shade600,
+        backgroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

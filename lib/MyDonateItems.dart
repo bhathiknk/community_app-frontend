@@ -70,22 +70,14 @@ class _MyDonationsPageState extends State<MyDonationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         title: const Text("My Donations"),
         backgroundColor: Colors.white,
       ),
       body: Stack(
         children: [
-          // Subtle gradient background
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.teal.shade50, Colors.teal.shade100],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
+
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _donations.isEmpty

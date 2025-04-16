@@ -100,22 +100,13 @@ class _DonateItemAddPageState extends State<DonateItemAddPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         title: const Text("Add Donation"),
-        backgroundColor: Colors.teal.shade600,
+        backgroundColor: Colors.white,
       ),
       body: Stack(
         children: [
-          // A subtle background color or gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.teal.shade50, Colors.teal.shade100],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else
@@ -126,6 +117,7 @@ class _DonateItemAddPageState extends State<DonateItemAddPage> {
                   // Fancy card for input fields
                   Card(
                     elevation: 3,
+                    color: Colors.white.withOpacity(0.8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -187,7 +179,8 @@ class _DonateItemAddPageState extends State<DonateItemAddPage> {
                               icon: const Icon(Icons.add_a_photo),
                               label: const Text("Select Images"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.teal.shade600,
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -224,17 +217,19 @@ class _DonateItemAddPageState extends State<DonateItemAddPage> {
                   // Submit Button
                   ElevatedButton.icon(
                     onPressed: _addDonation,
-                    icon: const Icon(Icons.check),
+                    icon: const Icon(Icons.check, color: Colors.white),
                     label: const Text("Submit Donation"),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade700,
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white, // Ensures white text and icon
                       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
                       textStyle: const TextStyle(fontSize: 16),
                     ),
-                  ),
+                  )
+
                 ],
               ),
             ),
