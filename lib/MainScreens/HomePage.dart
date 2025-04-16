@@ -3,12 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../ SettingsPage.dart';
-import '../AddItemPage.dart';
-import '../DonateItemAdd.dart';
-import '../DonationRequest.dart';
-import '../MyDonateItems.dart';
-import '../MyItemsPage.dart';
-import '../TradeItemRequestPage.dart';
+import '../CustomTabSelector.dart';
 import '../bottom_nav_bar.dart';
 
 class HomePage extends StatefulWidget {
@@ -109,7 +104,8 @@ class _HomePageState extends State<HomePage> {
           style: const TextStyle(color: Colors.red),
         ),
       )
-          : SingleChildScrollView(
+          : Padding(
+        // Removed SingleChildScrollView to lock scrolling
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         child: Column(
           children: [
@@ -128,130 +124,11 @@ class _HomePageState extends State<HomePage> {
             _buildProfileCard(profileImage),
             const SizedBox(height: 8),
 
-            // Tab section
-            DefaultTabController(
-              length: 2,
-              child: Column(
-                children: [
-                  // The top TabBar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const TabBar(
-                      indicatorColor: Colors.green,
-                      labelColor: Colors.green,
-                      unselectedLabelColor: Colors.grey,
-                      tabs: [
-                        Tab(text: 'Trade'),
-                        Tab(text: 'Donations'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // TabBarView
-                  Container(
-                    // Give the tab content a bounded height.
-                    // If there's more content, it will scroll.
-                    height: 350,
-                    child: TabBarView(
-                      children: [
-                        // Trade tab
-                        SingleChildScrollView(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildGrid([
-                            _buildActionButton(
-                              "Add Item",
-                              Icons.add_box,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AddItemPage(token: widget.token),
-                                  ),
-                                );
-                              },
-                            ),
-                            _buildActionButton(
-                              "My Items",
-                              Icons.inventory,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => MyItemsPage(token: widget.token),
-                                  ),
-                                );
-                              },
-                            ),
-                            _buildActionButton(
-                              "Trade Request",
-                              Icons.swap_horiz,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => TradeItemRequestPage(
-                                      token: widget.token,
-                                      currentUserId: _currentUserId,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ]),
-                        ),
-
-                        // Donations tab
-                        // Donations tab
-                        SingleChildScrollView(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildGrid([
-                            _buildActionButton(
-                              "Add Donation",
-                              Icons.volunteer_activism,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DonateItemAddPage(token: widget.token),
-                                  ),
-                                );
-                              },
-                            ),
-                            _buildActionButton(
-                              "My Donations",
-                              Icons.card_giftcard,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => MyDonationsPage(token: widget.token),
-                                  ),
-                                );
-                              },
-                            ),
-                            _buildActionButton(
-                              "Donation Request",
-                              Icons.redeem,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DonationRequestPage(token: widget.token),
-                                  ),
-                                );
-                              },
-                            ),
-                          ]),
-                        ),
-
-                      ],
-                    ),
-                  ),
-                ],
+            // Tabs (make it Expanded to use remaining space)
+            Expanded(
+              child: CustomTabSelector(
+                token: widget.token,
+                currentUserId: _currentUserId,
               ),
             ),
           ],
@@ -479,57 +356,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildActionButton(String title, IconData icon, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.rectangle,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: Colors.green, size: 24),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGrid(List<Widget> items) {
-    return GridView.count(
-      crossAxisCount: 3,
-      childAspectRatio: 0.9,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: items,
     );
   }
 }
