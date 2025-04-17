@@ -8,7 +8,7 @@ class WelcomePage extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFB3D1B9),
+      backgroundColor: Colors.teal.shade700,
       body: SafeArea(
         child: Container(
           width: size.width,
@@ -22,7 +22,7 @@ class WelcomePage extends StatelessWidget {
               SizedBox(
                 height: size.height * 0.40,
                 child: Image.asset(
-                  'images/welcome.png', // Make sure this image exists
+                  'images/welcome.png',
                   fit: BoxFit.contain,
                 ),
               ),
@@ -36,7 +36,7 @@ class WelcomePage extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
 
@@ -48,7 +48,7 @@ class WelcomePage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.black54,
+                  color: Colors.white,
                   height: 1.4,
                 ),
               ),

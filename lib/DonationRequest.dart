@@ -2,14 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-/**
- * A page showing all incoming donation requests for the current user's donation items.
- * Each request shows:
- *   - Donation item data (title, first image, or "No image"),
- *   - Requester's data (name, email, phone, profile image),
- *   - The request message + status,
- *   - Accept/Reject buttons if status = PENDING.
- */
 class DonationRequestPage extends StatefulWidget {
   final String token;
   const DonationRequestPage({Key? key, required this.token}) : super(key: key);
@@ -18,91 +10,57 @@ class DonationRequestPage extends StatefulWidget {
   State<DonationRequestPage> createState() => _DonationRequestPageState();
 }
 
-class _DonationRequestPageState extends State<DonationRequestPage> {
-  bool _isLoading = false;
-  List<dynamic> _requests = [];
-  static const String BASE_URL = "http://10.0.2.2:8080";
+class _DonationRequestPageState extends State<DonationRequestPage>
+    with TickerProviderStateMixin {
+  late TabController _outerTabCtrl;
+  late TabController _innerTabCtrl;
+  bool _loading = true;
+  List<dynamic> _incoming = [];
+  List<dynamic> _sent = [];
+
+  static const String BASE = "http://10.0.2.2:8080";
 
   @override
   void initState() {
     super.initState();
-    _fetchDonationRequests();
+    _outerTabCtrl = TabController(length: 2, vsync: this);
+    _innerTabCtrl = TabController(length: 3, vsync: this);
+    _fetchAll();
   }
 
-  // GET /api/donation-requests/incoming => List<DonationRequestViewDTO>
-  Future<void> _fetchDonationRequests() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchAll() async {
+    setState(() => _loading = true);
     try {
-      final resp = await http.get(
-        Uri.parse("$BASE_URL/api/donation-requests/incoming"),
+      final inResp = await http.get(
+        Uri.parse("$BASE/api/donation-requests/incoming"),
         headers: {"Authorization": "Bearer ${widget.token}"},
       );
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        setState(() => _requests = data);
-      } else {
-        debugPrint("Failed to load donation requests: ${resp.statusCode}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Load failed: ${resp.statusCode}")),
-        );
-      }
-    } catch (e) {
-      debugPrint("Error fetching donation requests: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+      final sentResp = await http.get(
+        Uri.parse("$BASE/api/donation-requests/sent"),
+        headers: {"Authorization": "Bearer ${widget.token}"},
       );
+      if (inResp.statusCode == 200 && sentResp.statusCode == 200) {
+        _incoming = jsonDecode(inResp.body);
+        _sent     = jsonDecode(sentResp.body);
+      }
+    } catch (_) {
+      // handle errors…
     } finally {
-      setState(() => _isLoading = false);
+      setState(() => _loading = false);
     }
   }
 
-  // Accept a donation request => POST /api/donation-requests/{requestId}/accept
-  Future<void> _acceptRequest(String requestId) async {
-    try {
-      final resp = await http.post(
-        Uri.parse("$BASE_URL/api/donation-requests/$requestId/accept"),
-        headers: {"Authorization": "Bearer ${widget.token}"},
-      );
-      if (resp.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Request accepted")),
-        );
-        _fetchDonationRequests();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Accept failed: ${resp.statusCode}")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
+  Future<void> _respond(String id, bool accept) async {
+    final path = accept ? "accept" : "reject";
+    await http.post(
+      Uri.parse("$BASE/api/donation-requests/$id/$path"),
+      headers: {"Authorization": "Bearer ${widget.token}"},
+    );
+    _fetchAll();
   }
 
-  // Reject => POST /api/donation-requests/{requestId}/reject
-  Future<void> _rejectRequest(String requestId) async {
-    try {
-      final resp = await http.post(
-        Uri.parse("$BASE_URL/api/donation-requests/$requestId/reject"),
-        headers: {"Authorization": "Bearer ${widget.token}"},
-      );
-      if (resp.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Request rejected")),
-        );
-        _fetchDonationRequests();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Reject failed: ${resp.statusCode}")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
+  List<dynamic> _filter(List<dynamic> list, String status) =>
+      list.where((r) => r["status"] == status).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -110,158 +68,167 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
       backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         title: const Text("Donation Requests"),
-        backgroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _outerTabCtrl,
+          tabs: const [
+            Tab(text: "Incoming"),
+            Tab(text: "Sent"),
+          ],
+        ),
       ),
-      body: _isLoading
+      body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _requests.isEmpty
-          ? const Center(child: Text("No donation requests yet."))
-          : ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _requests.length,
-        itemBuilder: (context, index) {
-          final r = _requests[index];
-          return _buildRequestCard(r);
-        },
+          : TabBarView(
+        controller: _outerTabCtrl,
+        children: [
+          _buildSection(_incoming, isIncoming: true),
+          _buildSection(_sent, isIncoming: false),
+        ],
       ),
     );
   }
 
-  Widget _buildRequestCard(dynamic r) {
-    // The request object is DonationRequestViewDTO
-    final requestId = r["requestId"] ?? "";
-    final donationId = r["donationId"] ?? "";
-    final donationTitle = r["donationTitle"] ?? "Unknown item";
-    final donationImages = (r["donationImages"] as List<dynamic>? ?? []);
-    final donationStatus = r["donationStatus"] ?? "";
-    final message = r["message"] ?? "";
-    final status = r["status"] ?? "PENDING";
-    final createdAt = r["createdAt"] ?? "";
+  Widget _buildSection(List<dynamic> all, {required bool isIncoming}) {
+    return Column(
+      children: [
+        Container(
+          color: Colors.grey.shade200,
+          child: TabBar(
+            controller: _innerTabCtrl,
+            labelColor: Colors.teal,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.teal,
+            tabs: const [
+              Tab(text: "Pending"),
+              Tab(text: "Accepted"),
+              Tab(text: "Rejected"),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _innerTabCtrl,
+            children: [
+              _buildList(_filter(all, "PENDING"), isIncoming),
+              _buildList(_filter(all, "ACCEPTED"), isIncoming),
+              _buildList(_filter(all, "REJECTED"), isIncoming),
+            ],
+          ),
+        )
+      ],
+    );
+  }
 
-    // Requester data
-    final requestedBy = r["requestedBy"] ?? "";
-    final requesterName = r["requesterFullName"] ?? "Unknown";
-    final requesterEmail = r["requesterEmail"] ?? "";
-    final requesterPhone = r["requesterPhone"] ?? "";
-    final requesterProfile = r["requesterProfile"] ?? "";
+  Widget _buildList(List<dynamic> items, bool isIncoming) {
+    if (items.isEmpty) {
+      return const Center(child: Text("No items here."));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: items.length,
+      itemBuilder: (_, i) => _buildCard(items[i], isIncoming),
+    );
+  }
 
-    // We'll display the first donation image (if any)
-    final firstImage = donationImages.isNotEmpty ? donationImages.first : null;
+  Widget _buildCard(dynamic r, bool isIncoming) {
+    // common fields
+    final title = isIncoming
+        ? r["donationTitle"]
+        : r["donationTitle"];
+    final imgList = r["donationImages"] as List<dynamic>? ?? [];
+    final img = imgList.isNotEmpty ? imgList.first : null;
+    final status = r["status"];
+    final msg = r["message"];
+    final reqId = r["requestId"];
+
+    // person info
+    final name  = isIncoming
+        ? r["requesterFullName"]
+        : r["receiverFullName"];
+    final email = isIncoming
+        ? r["requesterEmail"]
+        : r["receiverEmail"];
+    final phone = isIncoming
+        ? r["requesterPhone"]
+        : r["receiverPhone"];
+    final prof  = isIncoming
+        ? r["requesterProfile"]
+        : r["receiverProfile"];
 
     return Card(
-      elevation: 4,
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Donation info
-            Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: firstImage != null
-                      ? Image.network(
-                    firstImage,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                  )
-                      : Container(
-                    color: Colors.grey.shade300,
-                    width: 80,
-                    height: 80,
-                    child: const Icon(Icons.volunteer_activism, size: 40),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        donationTitle,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      Text("Donation status: $donationStatus",
-                          style: const TextStyle(color: Colors.black54)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Request info
-            Text("Message: $message"),
-            const SizedBox(height: 6),
-            Text("Request Status: $status",
-                style: TextStyle(
-                  color: status == "ACCEPTED"
-                      ? Colors.green
-                      : status == "REJECTED"
-                      ? Colors.red
-                      : Colors.orange,
-                )),
-            Text("Created at: $createdAt", style: const TextStyle(color: Colors.black45)),
-            const SizedBox(height: 8),
-            // Requester info
-            Row(
-              children: [
-                // Requester profile
-                CircleAvatar(
-                  radius: 24,
-                  backgroundImage: (requesterProfile.isNotEmpty)
-                      ? NetworkImage(requesterProfile)
-                      : const AssetImage("images/default_profile.png") as ImageProvider,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Requested by: $requesterName",
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                      if (requesterEmail.isNotEmpty)
-                        Text("Email: $requesterEmail",
-                            style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                      if (requesterPhone.isNotEmpty)
-                        Text("Phone: $requesterPhone",
-                            style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Accept/Reject if still pending
-            if (status == "PENDING")
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton(
-                    onPressed: () => _acceptRequest(requestId),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("Accept"),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () => _rejectRequest(requestId),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("Reject"),
-                  ),
-                ],
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Donation row
+          Row(children: [
+            if (img != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(img,
+                    width: 60, height: 60, fit: BoxFit.cover),
               ),
-          ],
-        ),
+            const SizedBox(width: 12),
+            Expanded(
+              child:
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            Container(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: status == "PENDING"
+                    ? Colors.orange
+                    : status == "ACCEPTED"
+                    ? Colors.green
+                    : Colors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(status, style: const TextStyle(color: Colors.white)),
+            )
+          ]),
+          const SizedBox(height: 8),
+          Text("Message: $msg"),
+          const SizedBox(height: 8),
+          // Person row
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              radius: 24,
+              backgroundImage: prof.isNotEmpty
+                  ? NetworkImage(prof)
+                  : null,
+              child:
+              prof.isEmpty ? const Icon(Icons.person) : null,
+            ),
+            title: Text(name),
+            subtitle: Text("$email\n$phone"),
+          ),
+          if (isIncoming && status == "PENDING")
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              TextButton(
+                onPressed: () => _respond(reqId, false),
+                child: const Text("Reject",
+                    style: TextStyle(color: Colors.red)),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => _respond(reqId, true),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green),
+                child: const Text("Accept"),
+              ),
+            ]),
+        ]),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _outerTabCtrl.dispose();
+    _innerTabCtrl.dispose();
+    super.dispose();
   }
 }

@@ -124,7 +124,7 @@ class _HomePageState extends State<HomePage> {
             _buildProfileCard(profileImage),
             const SizedBox(height: 8),
 
-            // Tabs (make it Expanded to use remaining space)
+            // Tabs
             Expanded(
               child: CustomTabSelector(
                 token: widget.token,

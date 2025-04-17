@@ -10,55 +10,47 @@ import 'TradeItemRequestPage.dart';
 class CustomTabSelector extends StatefulWidget {
   final String token;
   final String currentUserId;
-
-  const CustomTabSelector({
-    Key? key,
-    required this.token,
-    required this.currentUserId,
-  }) : super(key: key);
+  const CustomTabSelector(
+      {Key? key, required this.token, required this.currentUserId})
+      : super(key: key);
 
   @override
   State<CustomTabSelector> createState() => _CustomTabSelectorState();
 }
 
 class _CustomTabSelectorState extends State<CustomTabSelector> {
-  int _selectedIndex = 0;
-
-  final List<String> _tabs = ['Trade', 'Donations'];
+  int _selected = 0;
+  final _tabs = ['Trade', 'Donations'];
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Pill-shaped tab bar
+        // pill bar
         Container(
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 2),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.teal.shade50,
-            borderRadius: BorderRadius.circular(30),
-          ),
+              color: Colors.white, borderRadius: BorderRadius.circular(30)),
           child: Row(
-            children: List.generate(_tabs.length, (index) {
-              final isSelected = _selectedIndex == index;
+            children: List.generate(_tabs.length, (i) {
+              final sel = _selected == i;
               return Expanded(
                 child: GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedIndex = index);
-                  },
-                  child: Container(
+                  onTap: () => setState(() => _selected = i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.teal : Colors.transparent,
+                      color: sel ? Colors.teal : Colors.transparent,
                       borderRadius: BorderRadius.circular(30),
                     ),
                     child: Center(
                       child: Text(
-                        _tabs[index],
+                        _tabs[i],
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.teal,
-                          fontWeight: FontWeight.w600,
-                        ),
+                            color: sel ? Colors.white : Colors.teal,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -68,123 +60,87 @@ class _CustomTabSelectorState extends State<CustomTabSelector> {
           ),
         ),
 
-        // Tab content
+        // content
         Expanded(
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _selectedIndex == 0
-                ? _buildTradeTab()
-                : _buildDonationsTab(),
+            duration: const Duration(milliseconds: 250),
+            child: _selected == 0 ? _tradeTab() : _donationTab(),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTradeTab() {
-    return _buildGrid([
-      _modernActionButton("Add Item", Icons.add_box, onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => AddItemPage(token: widget.token)),
-        );
-      }),
-      _modernActionButton("My Items", Icons.inventory, onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => MyItemsPage(token: widget.token)),
-        );
-      }),
-      _modernActionButton("Trade Request", Icons.swap_horiz, onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TradeItemRequestPage(
-              token: widget.token,
-              currentUserId: widget.currentUserId,
+  /* ----- tabs ----- */
+
+  Widget _tradeTab() => _grid([
+    _action("Add Item", Icons.add_box,
+            () => _push(AddItemPage(token: widget.token))),
+    _action("My Items", Icons.inventory,
+            () => _push(MyItemsPage(token: widget.token))),
+    _action(
+        "Trade Request",
+        Icons.swap_horiz,
+            () => _push(TradeItemRequestPage(
+            token: widget.token, currentUserId: widget.currentUserId))),
+  ]);
+
+  Widget _donationTab() => _grid([
+    _action("Add Donation", Icons.volunteer_activism,
+            () => _push(DonateItemAddPage(token: widget.token))),
+    _action("My Donations", Icons.card_giftcard,
+            () => _push(MyDonationsPage(token: widget.token))),
+    _action("Donation Request", Icons.redeem,
+            () => _push(DonationRequestPage(token: widget.token))),
+  ]);
+
+  /* ----- grid & buttons ----- */
+
+  Widget _grid(List<Widget> buttons) => GridView.count(
+    crossAxisCount: 3,
+    mainAxisSpacing: 12,
+    crossAxisSpacing: 12,
+    childAspectRatio: 1,
+    padding: const EdgeInsets.all(6),
+
+    /// ---- let the grid scroll so it never forces the parent to overflow
+    physics: const BouncingScrollPhysics(),
+    children: buttons,
+  );
+
+  Widget _action(String title, IconData icon, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Center(
+          child: Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                      shape: BoxShape.circle, color: Colors.teal),
+                  child: Icon(icon, size: 25, color: Colors.white),
+                ),
+                const SizedBox(height: 5),
+                Text(title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87)),
+              ],
             ),
           ),
-        );
-      }),
-    ]);
-  }
-
-  Widget _buildDonationsTab() {
-    return _buildGrid([
-      _modernActionButton("Add Donation", Icons.volunteer_activism, onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => DonateItemAddPage(token: widget.token)),
-        );
-      }),
-      _modernActionButton("My Donations", Icons.card_giftcard, onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => MyDonationsPage(token: widget.token)),
-        );
-      }),
-      _modernActionButton("Donation Request", Icons.redeem, onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => DonationRequestPage(token: widget.token)),
-        );
-      }),
-    ]);
-  }
-
-  Widget _buildGrid(List<Widget> buttons) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 3,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.0, // square layout
-      padding: const EdgeInsets.all(6),
-      children: buttons,
-    );
-  }
-
-
-  Widget _modernActionButton(String title, IconData icon, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Center(
-        child: Container(
-          width: 90, // Smaller width
-          height: 90, // Smaller height (square shape)
-          decoration: BoxDecoration(
-              color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Smaller icon in circle
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.teal,
-                ),
-                child: Icon(icon, size: 25, color: Colors.white),
-              ),
-              const SizedBox(height: 5),
-              // Label
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
         ),
-      ),
-    );
-  }
+      );
 
+  void _push(Widget page) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 }
