@@ -1,6 +1,8 @@
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'donation_complete_page.dart';
 
 class DonationRequestPage extends StatefulWidget {
   final String token;
@@ -38,7 +40,7 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
       if (inResp.statusCode == 200) _incoming = jsonDecode(inResp.body);
       if (sentResp.statusCode == 200) _sent = jsonDecode(sentResp.body);
     } catch (_) {
-      // ignore errors
+      // ignore
     } finally {
       setState(() => _loading = false);
     }
@@ -51,6 +53,27 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
       headers: {"Authorization": "Bearer ${widget.token}"},
     );
     _fetchAll();
+  }
+
+  Future<void> _complete(String id) async {
+    final resp = await http.post(
+      Uri.parse("$_base/api/donation-requests/$id/complete"),
+      headers: {"Authorization": "Bearer ${widget.token}"},
+    );
+    if (resp.statusCode == 200) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DonationCompletePage(
+            token: widget.token,
+            requestId: id,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Complete failed")));
+    }
   }
 
   List<dynamic> _filter(List<dynamic> all, String status) =>
@@ -202,21 +225,17 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
 
   Widget _buildCard(dynamic r) {
     final incoming = _outerIndex == 0;
-    final title = r["donationTitle"] as String? ?? "";
+    final title = r[incoming ? "donationTitle" : "donationTitle"] as String? ?? "";
     final imgs = (r["donationImages"] as List? ?? []).cast<String>();
     final img = imgs.isNotEmpty ? imgs.first : null;
     final status = r["status"] as String;
     final msg = r["message"] as String? ?? "";
     final id = r["requestId"] as String;
 
-    final name =
-    incoming ? r["requesterFullName"] : r["receiverFullName"];
-    final email =
-    incoming ? r["requesterEmail"] : r["receiverEmail"];
-    final phone =
-    incoming ? r["requesterPhone"] : r["receiverPhone"];
-    final prof =
-    incoming ? r["requesterProfile"] : r["receiverProfile"];
+    final name = incoming ? r["requesterFullName"] : r["receiverFullName"];
+    final email = incoming ? r["requesterEmail"] : r["receiverEmail"];
+    final phone = incoming ? r["requesterPhone"] : r["receiverPhone"];
+    final prof = incoming ? r["requesterProfile"] : r["receiverProfile"];
 
     final statusColor = _statusColor(status);
 
@@ -227,7 +246,7 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
       elevation: 3,
       child: Row(
         children: [
-          // colored stripe
+          // status stripe
           Container(width: 6, height: 140, color: statusColor),
           Expanded(
             child: Padding(
@@ -250,9 +269,7 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                       child: Text(
                         title,
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
                     Container(
@@ -298,6 +315,8 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
+
+                  // Accept/Reject for incoming
                   if (incoming && status == "PENDING")
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -316,6 +335,20 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                               backgroundColor: Colors.teal.shade600),
                         ),
                       ],
+                    ),
+
+                  // “Complete Donation” for sent & accepted
+                  if (!incoming && status == "ACCEPTED")
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        onPressed: () => _complete(id),
+                        child: const Text("🎉 Donation Complete"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal.shade900,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ),
                 ],
               ),
