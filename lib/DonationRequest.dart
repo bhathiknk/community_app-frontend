@@ -10,21 +10,17 @@ class DonationRequestPage extends StatefulWidget {
   State<DonationRequestPage> createState() => _DonationRequestPageState();
 }
 
-class _DonationRequestPageState extends State<DonationRequestPage>
-    with TickerProviderStateMixin {
-  late TabController _outerTabCtrl;
-  late TabController _innerTabCtrl;
+class _DonationRequestPageState extends State<DonationRequestPage> {
+  int _outerIndex = 0; // 0=Incoming,1=Sent
+  int _innerIndex = 0; // 0=Pending,1=Accepted,2=Rejected
   bool _loading = true;
   List<dynamic> _incoming = [];
   List<dynamic> _sent = [];
-
-  static const String BASE = "http://10.0.2.2:8080";
+  static const _base = "http://10.0.2.2:8080";
 
   @override
   void initState() {
     super.initState();
-    _outerTabCtrl = TabController(length: 2, vsync: this);
-    _innerTabCtrl = TabController(length: 3, vsync: this);
     _fetchAll();
   }
 
@@ -32,203 +28,301 @@ class _DonationRequestPageState extends State<DonationRequestPage>
     setState(() => _loading = true);
     try {
       final inResp = await http.get(
-        Uri.parse("$BASE/api/donation-requests/incoming"),
+        Uri.parse("$_base/api/donation-requests/incoming"),
         headers: {"Authorization": "Bearer ${widget.token}"},
       );
       final sentResp = await http.get(
-        Uri.parse("$BASE/api/donation-requests/sent"),
+        Uri.parse("$_base/api/donation-requests/sent"),
         headers: {"Authorization": "Bearer ${widget.token}"},
       );
-      if (inResp.statusCode == 200 && sentResp.statusCode == 200) {
-        _incoming = jsonDecode(inResp.body);
-        _sent     = jsonDecode(sentResp.body);
-      }
+      if (inResp.statusCode == 200) _incoming = jsonDecode(inResp.body);
+      if (sentResp.statusCode == 200) _sent = jsonDecode(sentResp.body);
     } catch (_) {
-      // handle errors…
+      // ignore errors
     } finally {
       setState(() => _loading = false);
     }
   }
 
   Future<void> _respond(String id, bool accept) async {
-    final path = accept ? "accept" : "reject";
+    final action = accept ? "accept" : "reject";
     await http.post(
-      Uri.parse("$BASE/api/donation-requests/$id/$path"),
+      Uri.parse("$_base/api/donation-requests/$id/$action"),
       headers: {"Authorization": "Bearer ${widget.token}"},
     );
     _fetchAll();
   }
 
-  List<dynamic> _filter(List<dynamic> list, String status) =>
-      list.where((r) => r["status"] == status).toList();
+  List<dynamic> _filter(List<dynamic> all, String status) =>
+      all.where((r) => r["status"] == status).toList();
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case "ACCEPTED":
+        return Colors.green.shade600;
+      case "REJECTED":
+        return Colors.red.shade600;
+      default:
+        return Colors.orange.shade600;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final primary = Colors.teal.shade600;
+    final secondary = Colors.teal.shade900;
     return Scaffold(
       backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         title: const Text("Donation Requests"),
-        bottom: TabBar(
-          controller: _outerTabCtrl,
-          tabs: const [
-            Tab(text: "Incoming"),
-            Tab(text: "Sent"),
-          ],
-        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-        controller: _outerTabCtrl,
+      body: Column(
         children: [
-          _buildSection(_incoming, isIncoming: true),
-          _buildSection(_sent, isIncoming: false),
+          const SizedBox(height: 12),
+          _buildOuterSelector(primary),
+          const SizedBox(height: 12),
+          _buildInnerSelector(secondary),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildList(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSection(List<dynamic> all, {required bool isIncoming}) {
-    return Column(
-      children: [
-        Container(
-          color: Colors.grey.shade200,
-          child: TabBar(
-            controller: _innerTabCtrl,
-            labelColor: Colors.teal,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Colors.teal,
-            tabs: const [
-              Tab(text: "Pending"),
-              Tab(text: "Accepted"),
-              Tab(text: "Rejected"),
-            ],
-          ),
+  Widget _buildOuterSelector(Color primary) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: PhysicalModel(
+        color: Colors.white,
+        elevation: 2,
+        borderRadius: BorderRadius.circular(30),
+        child: Row(
+          children: ["Incoming", "Sent"].asMap().entries.map((entry) {
+            final idx = entry.key;
+            final label = entry.value;
+            final selected = idx == _outerIndex;
+            return Expanded(
+              child: InkWell(
+                onTap: () => setState(() {
+                  _outerIndex = idx;
+                  _innerIndex = 0;
+                }),
+                borderRadius: BorderRadius.circular(30),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: selected ? primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: selected ? Colors.white : primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _innerTabCtrl,
-            children: [
-              _buildList(_filter(all, "PENDING"), isIncoming),
-              _buildList(_filter(all, "ACCEPTED"), isIncoming),
-              _buildList(_filter(all, "REJECTED"), isIncoming),
-            ],
-          ),
-        )
-      ],
-    );
-  }
-
-  Widget _buildList(List<dynamic> items, bool isIncoming) {
-    if (items.isEmpty) {
-      return const Center(child: Text("No items here."));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: items.length,
-      itemBuilder: (_, i) => _buildCard(items[i], isIncoming),
-    );
-  }
-
-  Widget _buildCard(dynamic r, bool isIncoming) {
-    // common fields
-    final title = isIncoming
-        ? r["donationTitle"]
-        : r["donationTitle"];
-    final imgList = r["donationImages"] as List<dynamic>? ?? [];
-    final img = imgList.isNotEmpty ? imgList.first : null;
-    final status = r["status"];
-    final msg = r["message"];
-    final reqId = r["requestId"];
-
-    // person info
-    final name  = isIncoming
-        ? r["requesterFullName"]
-        : r["receiverFullName"];
-    final email = isIncoming
-        ? r["requesterEmail"]
-        : r["receiverEmail"];
-    final phone = isIncoming
-        ? r["requesterPhone"]
-        : r["receiverPhone"];
-    final prof  = isIncoming
-        ? r["requesterProfile"]
-        : r["receiverProfile"];
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Donation row
-          Row(children: [
-            if (img != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(img,
-                    width: 60, height: 60, fit: BoxFit.cover),
-              ),
-            const SizedBox(width: 12),
-            Expanded(
-              child:
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: status == "PENDING"
-                    ? Colors.orange
-                    : status == "ACCEPTED"
-                    ? Colors.green
-                    : Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(status, style: const TextStyle(color: Colors.white)),
-            )
-          ]),
-          const SizedBox(height: 8),
-          Text("Message: $msg"),
-          const SizedBox(height: 8),
-          // Person row
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              radius: 24,
-              backgroundImage: prof.isNotEmpty
-                  ? NetworkImage(prof)
-                  : null,
-              child:
-              prof.isEmpty ? const Icon(Icons.person) : null,
-            ),
-            title: Text(name),
-            subtitle: Text("$email\n$phone"),
-          ),
-          if (isIncoming && status == "PENDING")
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                onPressed: () => _respond(reqId, false),
-                child: const Text("Reject",
-                    style: TextStyle(color: Colors.red)),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () => _respond(reqId, true),
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green),
-                child: const Text("Accept"),
-              ),
-            ]),
-        ]),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _outerTabCtrl.dispose();
-    _innerTabCtrl.dispose();
-    super.dispose();
+  Widget _buildInnerSelector(Color secondary) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: PhysicalModel(
+        color: Colors.white,
+        elevation: 1,
+        borderRadius: BorderRadius.circular(30),
+        child: Row(
+          children: ["Pending", "Accepted", "Rejected"]
+              .asMap()
+              .entries
+              .map((entry) {
+            final idx = entry.key;
+            final label = entry.value;
+            final selected = idx == _innerIndex;
+            return Expanded(
+              child: InkWell(
+                onTap: () => setState(() => _innerIndex = idx),
+                borderRadius: BorderRadius.circular(30),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected ? secondary : Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: selected ? Colors.white : secondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    final data = _outerIndex == 0 ? _incoming : _sent;
+    final status = ["PENDING", "ACCEPTED", "REJECTED"][_innerIndex];
+    final items = _filter(data, status);
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          "No ${status.toLowerCase()} requests",
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: items.length,
+      itemBuilder: (_, i) => _buildCard(items[i]),
+    );
+  }
+
+  Widget _buildCard(dynamic r) {
+    final incoming = _outerIndex == 0;
+    final title = r["donationTitle"] as String? ?? "";
+    final imgs = (r["donationImages"] as List? ?? []).cast<String>();
+    final img = imgs.isNotEmpty ? imgs.first : null;
+    final status = r["status"] as String;
+    final msg = r["message"] as String? ?? "";
+    final id = r["requestId"] as String;
+
+    final name =
+    incoming ? r["requesterFullName"] : r["receiverFullName"];
+    final email =
+    incoming ? r["requesterEmail"] : r["receiverEmail"];
+    final phone =
+    incoming ? r["requesterPhone"] : r["receiverPhone"];
+    final prof =
+    incoming ? r["requesterProfile"] : r["receiverProfile"];
+
+    final statusColor = _statusColor(status);
+
+    return Card(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 3,
+      child: Row(
+        children: [
+          // colored stripe
+          Container(width: 6, height: 140, color: statusColor),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(children: [
+                    if (img != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          img,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    if (img != null) const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        status,
+                        style:
+                        const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Message: $msg",
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      radius: 24,
+                      backgroundImage: (prof as String).isNotEmpty
+                          ? NetworkImage(prof)
+                          : null,
+                      child: prof.isEmpty
+                          ? const Icon(Icons.person_outline)
+                          : null,
+                    ),
+                    title: Text(
+                      name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      "$email\n$phone",
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  if (incoming && status == "PENDING")
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => _respond(id, false),
+                          child: const Text("Reject"),
+                          style: TextButton.styleFrom(
+                              foregroundColor: Colors.red.shade700),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: () => _respond(id, true),
+                          child: const Text("Accept"),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal.shade600),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
