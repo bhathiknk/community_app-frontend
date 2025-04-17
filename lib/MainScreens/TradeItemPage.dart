@@ -14,26 +14,39 @@ class TradeItemPage extends StatefulWidget {
   State<TradeItemPage> createState() => _TradeItemPageState();
 }
 
-class _TradeItemPageState extends State<TradeItemPage> {
+class _TradeItemPageState extends State<TradeItemPage>
+    with SingleTickerProviderStateMixin {
   static const BASE_URL = "http://10.0.2.2:8080";
 
   bool _isLoading = false;
   List<dynamic> _allItems = [];
 
-  // For filter use
+  // Filters
   List<dynamic> _categories = [];
   int? _selectedCategoryId;
   final TextEditingController _searchCtrl = TextEditingController();
 
+  // ✨ subtle list fade‑in
+  late AnimationController _animCtrl;
+
   @override
   void initState() {
     super.initState();
-    _fetchCategories(); // fetch categories for filter usage
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fetchCategories();
     _fetchAllActiveTradeItems();
   }
 
-  // ================= BACKEND CALLS =================
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
 
+  // ================= BACKEND CALLS =================
   Future<void> _fetchCategories() async {
     try {
       final resp = await http.get(
@@ -44,34 +57,23 @@ class _TradeItemPageState extends State<TradeItemPage> {
         },
       );
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        setState(() {
-          _categories = data;
-        });
+        setState(() => _categories = jsonDecode(resp.body));
       }
-    } catch (e) {
-      // handle error if needed
-    }
+    } catch (_) {}
   }
 
-  Future<void> _fetchAllActiveTradeItems({String? search, int? categoryId}) async {
+  Future<void> _fetchAllActiveTradeItems({
+    String? search,
+    int? categoryId,
+  }) async {
     setState(() => _isLoading = true);
 
-    // build query string e.g. /api/trade?search=xxx&categoryId=yyy
+    // build query
     String url = "$BASE_URL/api/trade";
-    List<String> params = [];
-    // If your backend also handles "search" in the query, you can append here.
-    // Otherwise, remove the code below if not supported by your backend.
-    if (search != null && search.isNotEmpty) {
-      params.add("search=$search");
-    }
-    if (categoryId != null) {
-      params.add("categoryId=$categoryId");
-    }
-
-    if (params.isNotEmpty) {
-      url += "?${params.join("&")}";
-    }
+    final params = <String>[];
+    if (search != null && search.isNotEmpty) params.add("search=$search");
+    if (categoryId != null) params.add("categoryId=$categoryId");
+    if (params.isNotEmpty) url += "?${params.join("&")}";
 
     try {
       final resp = await http.get(
@@ -81,282 +83,306 @@ class _TradeItemPageState extends State<TradeItemPage> {
           "Content-Type": "application/json",
         },
       );
-
       setState(() => _isLoading = false);
 
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as List;
-        setState(() {
-          _allItems = data;
-        });
+        _allItems = jsonDecode(resp.body);
+        // restart the list fade‑in every time new data arrives
+        _animCtrl.forward(from: 0);
       } else {
-        final msg = jsonDecode(resp.body)["message"] ?? "Failed to fetch items";
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        final msg =
+            jsonDecode(resp.body)["message"] ?? "Failed to fetch items";
+        _snack(msg);
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      _snack("Error: $e");
     }
   }
 
-  // ================= FILTER UI (BOTTOM SHEET) =================
+  // ================= HELPERS =================
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
+  // ================= FILTER UI =================
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.5,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          builder: (context, scrollController) {
-            return Container(
-              padding: const EdgeInsets.all(16.0),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Filter Items",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+      backgroundColor: Colors.transparent,
+      builder: (_) => _buildFilterSheet(),
+    );
+  }
 
-                    // Search Input
-                    TextFormField(
-                      controller: _searchCtrl,
-                      decoration: InputDecoration(
-                        labelText: "Search by Title",
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Category Filter
-                    DropdownButtonFormField<int>(
-                      value: _selectedCategoryId,
-                      decoration: InputDecoration(
-                        labelText: "Category",
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      items: [
-                        const DropdownMenuItem<int>(
-                          value: null,
-                          child: Text("All Categories"),
-                        ),
-                        ..._categories.map((cat) {
-                          return DropdownMenuItem<int>(
-                            value: cat["categoryId"],
-                            child: Text(cat["categoryName"]),
-                          );
-                        }).toList()
-                      ].cast<DropdownMenuItem<int>>(),
-                      onChanged: (val) {
-                        setState(() => _selectedCategoryId = val);
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Apply Button
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context); // close bottom sheet
-                        _fetchAllActiveTradeItems(
-                          search: _searchCtrl.text.trim(),
-                          categoryId: _selectedCategoryId,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text(
-                        "Apply",
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
-                    )
-                  ],
+  Widget _buildFilterSheet() {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.9,
+      builder: (ctx, scrollCtrl) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
+          child: ListView(
+            controller: scrollCtrl,
+            children: [
+              Center(
+                child: Container(
+                  height: 5,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
               ),
-            );
-          },
+              const SizedBox(height: 18),
+              const Text(
+                "Filters",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 🔍 Search
+              TextField(
+                controller: _searchCtrl,
+                decoration: _inputDecoration("Search by title", Icons.search),
+              ),
+              const SizedBox(height: 18),
+
+              // 🏷️ Category chips
+              Wrap(
+                spacing: 8,
+                children: [
+                  _categoryChip(null, "All"),
+                  ..._categories.map((c) =>
+                      _categoryChip(c["categoryId"], c["categoryName"])),
+                ],
+              ),
+              const SizedBox(height: 32),
+
+              // Apply
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _fetchAllActiveTradeItems(
+                    search: _searchCtrl.text.trim(),
+                    categoryId: _selectedCategoryId,
+                  );
+                },
+                icon: const Icon(Icons.check),
+                label: const Text("Apply Filters"),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: Colors.green.shade700,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              )
+            ],
+          ),
         );
       },
     );
   }
 
-  // ================= UI =================
+  InputDecoration _inputDecoration(String hint, IconData icon) =>
+      InputDecoration(
+        prefixIcon: Icon(icon),
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      );
 
+  Widget _categoryChip(int? id, String text) {
+    final selected = id == _selectedCategoryId;
+    return ChoiceChip(
+      label: Text(text),
+      selected: selected,
+      onSelected: (_) => setState(() => _selectedCategoryId = id),
+      selectedColor: Colors.teal.shade600,
+      backgroundColor: Colors.grey.shade200,
+      labelStyle:
+      TextStyle(color: selected ? Colors.white : Colors.grey.shade800),
+    );
+  }
+
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal.shade700,
+      backgroundColor: Colors.teal.shade50,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text("Trade Items", style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
+        elevation: 1,
+        title: const Text(
+          "Marketplace",
+          style: TextStyle(color: Colors.black87),
+        ),
         actions: [
-          TextButton.icon(
+          IconButton(
+            icon: const Icon(Icons.filter_list, color: Colors.black87),
             onPressed: _showFilterSheet,
-            icon: const Icon(Icons.filter_list, color: Colors.black),
-            label: const Text(
-              "Filter Items",
-              style: TextStyle(color: Colors.black),
-            ),
+            tooltip: "Filters",
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const _PageLoader()
           : _allItems.isEmpty
-          ? const Center(child: Text("No items found."))
-          : ListView.builder(
-        itemCount: _allItems.length,
-        itemBuilder: (ctx, i) {
-          final item = _allItems[i];
-          final title = item["title"] ?? "No Title";
-          final price = item["price"]?.toString() ?? "0";
-          final status = item["status"] ?? "Unknown";
-          final images = item["images"] as List<dynamic>?;
+          ? const Center(child: Text("No items found"))
+          : FadeTransition(
+        opacity: _animCtrl.drive(
+          CurveTween(curve: Curves.easeIn),
+        ),
+        child: RefreshIndicator(
+          onRefresh: () => _fetchAllActiveTradeItems(
+              search: _searchCtrl.text.trim(),
+              categoryId: _selectedCategoryId),
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: _allItems.length,
+            padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 10),
+            itemBuilder: (_, i) => _itemCard(_allItems[i]),
+          ),
+        ),
+      ),
+      bottomNavigationBar:
+      BottomNavBar(selectedIndex: 1, token: widget.token),
+    );
+  }
 
-          // NEW: read the owner's profile image
-          final ownerProfileImg = item["ownerProfileImage"] as String?;
+  Widget _itemCard(dynamic item) {
+    final title = item["title"] ?? "Untitled";
+    final price = item["price"]?.toString() ?? "0";
+    final images = (item["images"] as List?)?.cast<String>() ?? [];
+    final ownerImg = item["ownerProfileImage"] as String?;
 
-          return GestureDetector(
-            onTap: () {
-              // Navigate to detail page
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TradeItemDetailsPage(
-                    token: widget.token,
-                    itemId: item["itemId"],
-                  ),
-                ),
-              );
-            },
-            child: Card(
-              color: Colors.white,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              margin: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Owner profile + title row
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundImage: (ownerProfileImg != null && ownerProfileImg.isNotEmpty)
-                              ? NetworkImage(ownerProfileImg)
-                              : const AssetImage("images/default_profile.png") as ImageProvider,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Image slider
-                    if (images != null && images.isNotEmpty)
-                      CarouselSlider(
-                        items: images.map((imgUrl) {
-                          return Builder(
-                            builder: (context) {
-                              return Container(
-                                margin: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: Colors.grey[200],
-                                ),
-                                child: Image.network(
-                                  imgUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (ctx, error, stack) {
-                                    return const Center(
-                                      child: Text("Image load error"),
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          );
-                        }).toList(),
-                        options: CarouselOptions(
-                          height: 200,
-                          autoPlay: true,
-                          enlargeCenterPage: true,
-                          enableInfiniteScroll: false,
-                          aspectRatio: 16 / 9,
-                          autoPlayInterval: const Duration(seconds: 3),
-                          autoPlayAnimationDuration: const Duration(milliseconds: 800),
-                          viewportFraction: 0.8,
-                        ),
-                      )
-                    else
-                      Container(
-                        height: 200,
-                        color: Colors.grey[300],
-                        child: const Center(
-                          child: Text("No images"),
-                        ),
-                      ),
-
-                    const SizedBox(height: 12),
-
-                    // Price
-                    Text("Price: \$$price"),
-                    const SizedBox(height: 6),
-
-                    // Status
-                    Text("Status: $status"),
-                  ],
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              TradeItemDetailsPage(token: widget.token, itemId: item["itemId"]),
+        ),
+      ),
+      child: Card(
+        elevation: 3,
+        margin: const EdgeInsets.only(bottom: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            // 📸 Images
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: images.isEmpty
+                  ? Container(
+                color: Colors.grey.shade200,
+                child: const Center(child: Text("No images")),
+              )
+                  : CarouselSlider(
+                items: images
+                    .map((u) => Image.network(
+                  u,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  errorBuilder: (_, __, ___) =>
+                  const Center(child: Icon(Icons.broken_image)),
+                ))
+                    .toList(),
+                options: CarouselOptions(
+                  viewportFraction: 1,
+                  enlargeCenterPage: false,
+                  autoPlay: true,
+                  autoPlayInterval: const Duration(seconds: 4),
                 ),
               ),
             ),
-          );
-        },
+            // 📑 Info
+            Padding(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: ownerImg != null && ownerImg.isNotEmpty
+                        ? NetworkImage(ownerImg)
+                        : const AssetImage("images/default_profile.png")
+                    as ImageProvider,
+                    radius: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      "Rs. $price",
+                      style: TextStyle(
+                          color: Colors.green.shade800,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavBar(selectedIndex: 1, token: widget.token),
     );
   }
+}
+
+/// Simple fading dots loader
+class _PageLoader extends StatelessWidget {
+  const _PageLoader();
+  @override
+  Widget build(BuildContext context) => Center(
+    child: TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 6),
+      duration: const Duration(seconds: 2),
+      builder: (_, val, __) => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(
+          3,
+              (i) => Padding(
+            padding: const EdgeInsets.all(4),
+            child: Opacity(
+              opacity: (val.toInt() % 3) == i ? 1 : .3,
+              child: const CircleAvatar(radius: 6, backgroundColor: Colors.teal),
+            ),
+          ),
+        ),
+      ),
+      onEnd: () {},
+    ),
+  );
 }
