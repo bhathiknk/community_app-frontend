@@ -18,7 +18,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
+  bool _loading = true, _ratingLoading = true;
   String _error = '';
+  double _avgRating = 0.0;
+  int _ratingCount = 0;
   static const String BASE_URL = "http://10.0.2.2:8080";
   String _currentUserId = "";
 
@@ -45,6 +48,8 @@ class _HomePageState extends State<HomePage> {
         });
         _currentUserId = _profile?["userId"] ?? "";
         await _fetchProfileImage();
+        //fetch the rating summary:
+        await _fetchRatingSummary();
       } else {
         setState(() {
           _error = "Failed to load profile";
@@ -76,6 +81,26 @@ class _HomePageState extends State<HomePage> {
       debugPrint("Error fetching profile image: $e");
     }
   }
+
+
+  Future<void> _fetchRatingSummary() async {
+    try {
+      final resp = await http.get(
+        Uri.parse("$BASE_URL/api/ratings/me"),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        _avgRating = (data['average'] as num).toDouble();
+        _ratingCount = data['count'] as int;
+      }
+    } catch (_) {
+      // ignore errors
+    } finally {
+      setState(() => _ratingLoading = false);
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -248,56 +273,32 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildRatingSection() {
-    double ratingValue = 4.5; // Hard-coded example rating
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Star icons
-          Row(
-            children: List.generate(5, (index) {
-              return Icon(
-                index < ratingValue.floor()
-                    ? Icons.star
-                    : index < ratingValue
-                    ? Icons.star_half
-                    : Icons.star_border,
-                color: Colors.amberAccent.shade200,
-                size: 18,
-              );
-            }),
-          ),
-          const SizedBox(width: 6),
-          // Rating text
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "$ratingValue / 5",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: Colors.white,
-                ),
-              ),
-              const Text(
-                "Community Rating",
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white70,
-                ),
-              ),
-            ],
-          )
-        ],
-      ),
+    final fullStars = _avgRating.floor();
+    final halfStar = (_avgRating - fullStars) >= 0.5;
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(5, (i) {
+            if (i < fullStars) {
+              return const Icon(Icons.star, color: Colors.amber, size: 20);
+            } else if (i == fullStars && halfStar) {
+              return const Icon(Icons.star_half, color: Colors.amber, size: 20);
+            } else {
+              return const Icon(Icons.star_border, color: Colors.amber, size: 20);
+            }
+          }),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${_avgRating.toStringAsFixed(1)} ★  ($_ratingCount reviews)',
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+      ],
     );
   }
+
+
 
   Widget _glassInfoRow(IconData icon, String label, String? value) {
     return ClipRRect(
