@@ -90,9 +90,8 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
           MaterialPageRoute(
             builder: (_) => HomePage(token: widget.token),
           ),
-              (route) => false, // removes all previous routes
+              (route) => false,
         );
-
       } else {
         final msg = jsonDecode(resp.body)['message'] ?? 'Submission failed';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -115,9 +114,9 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
         final idx = i + 1;
         return IconButton(
           icon: Icon(
-            idx <= _rating ? Icons.star : Icons.star_border,
-            size: 32,
-            color: Colors.amber,
+            idx <= _rating ? Icons.star_rounded : Icons.star_border_rounded,
+            size: 34,
+            color: Colors.amber.shade600,
           ),
           onPressed: () => setState(() => _rating = idx),
         );
@@ -128,10 +127,11 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.teal.shade50,
       appBar: AppBar(
-        title: const Text('Confirm Donation Complete'),
+        title: const Text('Donation Completion'),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.teal.shade600,
+        foregroundColor: Colors.teal.shade700,
         elevation: 1,
       ),
       body: _loading
@@ -144,11 +144,10 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+            Material(
+              elevation: 4,
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -159,7 +158,7 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
                           .isNotEmpty
                           ? NetworkImage(_info!['donorProfileImage'])
                           : null,
-                      child: (_info!['donorFullName'] as String).isEmpty
+                      child: (_info!['donorProfileImage'] as String).isEmpty
                           ? const Icon(Icons.person, size: 36)
                           : null,
                     ),
@@ -174,9 +173,10 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
                                 fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
-                          Text(_info!['donorEmail'] ?? ''),
-                          const SizedBox(height: 4),
-                          Text(_info!['donorPhone'] ?? ''),
+                          Text(_info!['donorEmail'] ?? '',
+                              style: const TextStyle(color: Colors.black54)),
+                          Text(_info!['donorPhone'] ?? '',
+                              style: const TextStyle(color: Colors.black54)),
                         ],
                       ),
                     ),
@@ -187,6 +187,7 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
             const SizedBox(height: 24),
             const Text('Rate your experience',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
             _buildStars(),
             const SizedBox(height: 16),
             TextField(
@@ -194,24 +195,28 @@ class _DonationCompletePageState extends State<DonationCompletePage> {
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Optional comment',
+                filled: true,
+                fillColor: Colors.white,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
             const Spacer(),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.send_rounded, size: 20),
                 onPressed: _submitting ? null : _submitRating,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal.shade600,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: _submitting
+                label: _submitting
                     ? const SizedBox(
                   height: 20,
                   width: 20,
