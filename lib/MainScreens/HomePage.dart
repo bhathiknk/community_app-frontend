@@ -3,8 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../ SettingsPage.dart';
+import '../Ratings.dart';
 import '../CustomTabSelector.dart';
 import '../bottom_nav_bar.dart';
+
 
 class HomePage extends StatefulWidget {
   final String token;
@@ -18,7 +20,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
-  bool _loading = true, _ratingLoading = true;
+  bool _ratingLoading = true;
   String _error = '';
   double _avgRating = 0.0;
   int _ratingCount = 0;
@@ -33,55 +35,41 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _fetchProfile() async {
     try {
-      final response = await http.get(
+      final resp = await http.get(
         Uri.parse("$BASE_URL/api/user/profile"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer ${widget.token}",
         },
       );
-      if (response.statusCode == 200) {
-        final parsedData = jsonDecode(response.body) as Map<String, dynamic>?;
-        setState(() {
-          _profile = parsedData;
-          _isLoading = false;
-        });
+      if (resp.statusCode == 200) {
+        _profile = jsonDecode(resp.body);
         _currentUserId = _profile?["userId"] ?? "";
         await _fetchProfileImage();
-        //fetch the rating summary:
         await _fetchRatingSummary();
       } else {
-        setState(() {
-          _error = "Failed to load profile";
-          _isLoading = false;
-        });
+        _error = "Failed to load profile";
       }
     } catch (e) {
-      setState(() {
-        _error = "Something went wrong: $e";
-        _isLoading = false;
-      });
+      _error = "Error: $e";
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _fetchProfileImage() async {
     try {
-      final response = await http.get(
+      final resp = await http.get(
         Uri.parse("$BASE_URL/getProfileImage"),
         headers: {"Authorization": "Bearer ${widget.token}"},
       );
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        setState(() {
-          _profile ??= {};
-          _profile!["profileImage"] = jsonData["profileImage"];
-        });
+      if (resp.statusCode == 200) {
+        final js = jsonDecode(resp.body);
+        _profile ??= {};
+        _profile!["profileImage"] = js["profileImage"];
       }
-    } catch (e) {
-      debugPrint("Error fetching profile image: $e");
-    }
+    } catch (_) {}
   }
-
 
   Future<void> _fetchRatingSummary() async {
     try {
@@ -90,23 +78,16 @@ class _HomePageState extends State<HomePage> {
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        _avgRating = (data['average'] as num).toDouble();
-        _ratingCount = data['count'] as int;
+        final map = jsonDecode(resp.body);
+        _avgRating = (map['average'] as num).toDouble();
+        _ratingCount = map['count'] as int;
       }
-    } catch (_) {
-      // ignore errors
-    } finally {
-      setState(() => _ratingLoading = false);
-    }
+    } catch (_) {}
+    setState(() => _ratingLoading = false);
   }
-
 
   @override
   Widget build(BuildContext context) {
-    final fullName = _profile?["fullName"] ?? "";
-    final profileImage = _profile?["profileImage"];
-
     return Scaffold(
       backgroundColor: Colors.teal.shade700,
       appBar: AppBar(
@@ -116,27 +97,22 @@ class _HomePageState extends State<HomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black),
-            onPressed: () => Navigator.pushReplacementNamed(context, '/signin'),
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, '/signin'),
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error.isNotEmpty
-          ? Center(
-        child: Text(
-          _error,
-          style: const TextStyle(color: Colors.red),
-        ),
-      )
+          ? Center(child: Text(_error, style: const TextStyle(color: Colors.red)))
           : Padding(
-        // Removed SingleChildScrollView to lock scrolling
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         child: Column(
           children: [
-            // Welcome text
             Text(
-              "Welcome to Community App, $fullName!",
+              "Welcome to Community App, ${_profile?["fullName"] ?? ""}!",
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -144,12 +120,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 8),
-
-            // Profile card
-            _buildProfileCard(profileImage),
+            _buildProfileCard(_profile?["profileImage"]),
             const SizedBox(height: 8),
-
-            // Tabs
             Expanded(
               child: CustomTabSelector(
                 token: widget.token,
@@ -159,7 +131,8 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavBar(selectedIndex: 0, token: widget.token),
+      bottomNavigationBar:
+      BottomNavBar(selectedIndex: 0, token: widget.token),
     );
   }
 
@@ -179,54 +152,75 @@ class _HomePageState extends State<HomePage> {
                 border: Border.all(color: Colors.white.withOpacity(0.3)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12.withOpacity(0.1),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
+                      color: Colors.black12.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5)),
                 ],
               ),
               child: Column(
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundImage: (profileImage != null && profileImage.isNotEmpty)
+                    backgroundImage: (profileImage != null &&
+                        profileImage.isNotEmpty)
                         ? NetworkImage(profileImage)
-                        : const AssetImage("images/default_profile.png") as ImageProvider,
+                        : const AssetImage("images/default_profile.png")
+                    as ImageProvider,
                   ),
                   const SizedBox(height: 10),
                   Text(
                     _profile?["fullName"] ?? "-",
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87),
                   ),
                   const SizedBox(height: 6),
-                  _buildRatingSection(),
+
+                  // ←─── updated rating row with eye icon ───→
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.remove_red_eye,
+                            color: Colors.white70),
+                        tooltip: 'View my ratings',
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                RatingsPage(token: widget.token),
+                          ),
+                        ),
+                      ),
+                      _buildRatingSection(),
+                    ],
+                  ),
+
                   const SizedBox(height: 6),
-                  const Divider(thickness: 1, height: 20, color: Colors.black26),
+                  const Divider(
+                      thickness: 1, height: 20, color: Colors.black26),
                   _buildProfileDetails(),
                 ],
               ),
             ),
           ),
         ),
+
+        // settings button
         Positioned(
           top: 10,
           right: 10,
           child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SettingsPage(
-                    token: widget.token,
-                    currentProfileImage: profileImage,
-                  ),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SettingsPage(
+                  token: widget.token,
+                  currentProfileImage: profileImage,
                 ),
-              ).then((_) => _fetchProfile());
-            },
+              ),
+            ).then((_) => _fetchProfile()),
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
@@ -234,13 +228,13 @@ class _HomePageState extends State<HomePage> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black26.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
+                      color: Colors.black26.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2)),
                 ],
               ),
-              child: const Icon(Icons.settings, size: 20, color: Colors.black87),
+              child: const Icon(Icons.settings,
+                  size: 20, color: Colors.black87),
             ),
           ),
         ),
@@ -258,12 +252,12 @@ class _HomePageState extends State<HomePage> {
         Row(
           children: [
             Expanded(
-              child: _glassInfoRow(Icons.location_city, "City", _profile?["city"]),
-            ),
+                child: _glassInfoRow(
+                    Icons.location_city, "City", _profile?["city"])),
             const SizedBox(width: 4),
             Expanded(
-              child: _glassInfoRow(Icons.map, "Province", _profile?["province"]),
-            ),
+                child: _glassInfoRow(
+                    Icons.map, "Province", _profile?["province"])),
           ],
         ),
         const SizedBox(height: 4),
@@ -273,19 +267,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildRatingSection() {
-    final fullStars = _avgRating.floor();
-    final halfStar = (_avgRating - fullStars) >= 0.5;
+    final full = _avgRating.floor();
+    final half = (_avgRating - full) >= 0.5;
     return Column(
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(5, (i) {
-            if (i < fullStars) {
+            if (i < full) {
               return const Icon(Icons.star, color: Colors.amber, size: 20);
-            } else if (i == fullStars && halfStar) {
-              return const Icon(Icons.star_half, color: Colors.amber, size: 20);
+            } else if (i == full && half) {
+              return const Icon(Icons.star_half,
+                  color: Colors.amber, size: 20);
             } else {
-              return const Icon(Icons.star_border, color: Colors.amber, size: 20);
+              return const Icon(Icons.star_border,
+                  color: Colors.amber, size: 20);
             }
           }),
         ),
@@ -297,8 +293,6 @@ class _HomePageState extends State<HomePage> {
       ],
     );
   }
-
-
 
   Widget _glassInfoRow(IconData icon, String label, String? value) {
     return ClipRRect(
@@ -312,7 +306,7 @@ class _HomePageState extends State<HomePage> {
             gradient: LinearGradient(
               colors: [
                 Colors.white.withOpacity(0.15),
-                Colors.white.withOpacity(0.05),
+                Colors.white.withOpacity(0.05)
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -326,10 +320,7 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Colors.greenAccent,
-                      Colors.green.shade800,
-                    ],
+                    colors: [Colors.greenAccent, Colors.green.shade800],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -343,7 +334,8 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(label,
-                        style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                        style:
+                        const TextStyle(fontSize: 14, color: Colors.white70)),
                     const SizedBox(height: 2),
                     Text(value ?? '-',
                         style: const TextStyle(
