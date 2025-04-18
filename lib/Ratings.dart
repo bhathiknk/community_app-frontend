@@ -1,5 +1,3 @@
-// lib/pages/RatingsPage.dart
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -57,12 +55,17 @@ class _RatingsPageState extends State<RatingsPage> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: Colors.teal.shade50,
         appBar: AppBar(
-          title: const Text('My Ratings'),
+          title: const Text('My Ratings', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.teal,
+          elevation: 4,
           bottom: const TabBar(
+            labelColor: Colors.white,
+            indicatorColor: Colors.amber,
             tabs: [
-              Tab(text: 'Received'),
-              Tab(text: 'Sent'),
+              Tab(icon: Icon(Icons.inbox), text: 'Received'),
+              Tab(icon: Icon(Icons.send), text: 'Sent'),
             ],
           ),
         ),
@@ -76,68 +79,89 @@ class _RatingsPageState extends State<RatingsPage> {
     );
   }
 
-  Widget _buildTab(bool loading, List<dynamic> items,
-      {required bool isReceived}) {
+  Widget _buildTab(bool loading, List<dynamic> items, {required bool isReceived}) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: Colors.teal));
     }
     if (items.isEmpty) {
       return Center(
-        child: Text(isReceived
-            ? 'No received ratings yet'
-            : 'No sent ratings yet'),
+        child: Text(
+          isReceived ? 'No received ratings yet' : 'No sent ratings yet',
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+        ),
       );
     }
     return ListView.builder(
       itemCount: items.length,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
       itemBuilder: (_, i) {
         final r = items[i];
-        final imageField = isReceived
-            ? r['raterProfileImage']
-            : r['rateeProfileImage'];
-        final nameField = isReceived
-            ? r['raterFullName']
-            : r['rateeFullName'];
+        final imageField = isReceived ? r['raterProfileImage'] : r['rateeProfileImage'];
+        final nameField = isReceived ? r['raterFullName'] : r['rateeFullName'];
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
           child: ListTile(
+            contentPadding: const EdgeInsets.all(12),
             leading: CircleAvatar(
+              radius: 26,
               backgroundImage: (imageField != null && imageField.isNotEmpty)
                   ? NetworkImage(imageField)
                   : null,
               child: (imageField == null || imageField.isEmpty)
-                  ? const Icon(Icons.person_outline)
+                  ? const Icon(Icons.person_outline, size: 26)
                   : null,
             ),
-            title: Text(nameField ?? ''),
+            title: Text(
+              nameField ?? '',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
+              ),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 4),
-                Text('Item: ${r['donationTitle'] ?? ''}'),
+                const SizedBox(height: 6),
+                Text(
+                  'Item: ${r['donationTitle'] ?? ''}',
+                  style: const TextStyle(color: Colors.black87),
+                ),
                 const SizedBox(height: 4),
                 Row(
                   children: List.generate(5, (j) {
                     return j < (r['score'] as int)
-                        ? const Icon(Icons.star, size: 16, color: Colors.amber)
-                        : const Icon(Icons.star_border,
-                        size: 16, color: Colors.amber);
+                        ? const Icon(Icons.star, size: 18, color: Colors.amber)
+                        : const Icon(Icons.star_border, size: 18, color: Colors.amber);
                   }),
                 ),
-                const SizedBox(height: 4),
-                Text(r['comment'] ?? ''),
+                const SizedBox(height: 6),
+                Text(
+                  r['comment'] ?? '',
+                  style: const TextStyle(color: Colors.black54),
+                ),
               ],
             ),
-            isThreeLine: true,
-            trailing: (r['donationImage'] != null &&
-                r['donationImage'].isNotEmpty)
-                ? Image.network(
-              r['donationImage'],
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
+            trailing: (r['donationImage'] != null && r['donationImage'].isNotEmpty)
+                ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                r['donationImage'],
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+              ),
             )
                 : null,
           ),
