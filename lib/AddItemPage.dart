@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
-import 'MainScreens/HomePage.dart'; // Update with your actual path
+import 'MainScreens/HomePage.dart'; // adjust to your real import
 
 class AddItemPage extends StatefulWidget {
   final String token;
@@ -18,12 +19,12 @@ class AddItemPage extends StatefulWidget {
 class _AddItemPageState extends State<AddItemPage> {
   static const String BASE_URL = "http://10.0.2.2:8080";
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _titleCtrl = TextEditingController();
-  final TextEditingController _descCtrl = TextEditingController();
-  final TextEditingController _priceCtrl = TextEditingController();
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-  final List<XFile> _pickedImages = [];
 
+  List<File> _pickedFiles = [];
   List<dynamic> _categories = [];
   int? _selectedCategoryId;
   bool _isLoading = false;
@@ -35,21 +36,17 @@ class _AddItemPageState extends State<AddItemPage> {
     _fetchCategories();
   }
 
-  // Fetch categories with JWT
   Future<void> _fetchCategories() async {
     try {
-      final response = await http.get(
+      final resp = await http.get(
         Uri.parse("$BASE_URL/api/categories"),
         headers: {
           "Authorization": "Bearer ${widget.token}",
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         },
       );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _categories = data;
-        });
+      if (resp.statusCode == 200) {
+        setState(() => _categories = jsonDecode(resp.body));
       } else {
         setState(() => _errorMessage = "Failed to load categories");
       }
@@ -58,32 +55,73 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
-  // Pick up to 5 images
-  Future<void> _pickImage() async {
-    if (_pickedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Maximum 5 images allowed.")),
-      );
-      return;
-    }
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() => _pickedImages.add(image));
-    }
+  /// Show bottom‐sheet to pick from camera, gallery, or file
+  Future<void> _showImageSourceSheet() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Take Photo"),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? photo =
+                await _picker.pickImage(source: ImageSource.camera);
+                if (photo != null && _pickedFiles.length < 5) {
+                  setState(() => _pickedFiles.add(File(photo.path)));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text("Choose from Gallery"),
+              onTap: () async {
+                Navigator.pop(context);
+                final List<XFile>? images = await _picker.pickMultiImage();
+                if (images != null && images.isNotEmpty) {
+                  final remaining = 5 - _pickedFiles.length;
+                  for (var img in images.take(remaining)) {
+                    _pickedFiles.add(File(img.path));
+                  }
+                  setState(() {});
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder),
+              title: const Text("Browse Files"),
+              onTap: () async {
+                Navigator.pop(context);
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.image,
+                  allowMultiple: true,
+                );
+                if (result != null && result.paths.isNotEmpty) {
+                  final remaining = 5 - _pickedFiles.length;
+                  for (var path in result.paths.take(remaining)) {
+                    if (path != null) _pickedFiles.add(File(path));
+                  }
+                  setState(() {});
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _saveItem() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a category")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Please select a category")));
       return;
     }
-
     setState(() => _isLoading = true);
 
-    // Build JSON for item
     final itemJson = {
       "title": _titleCtrl.text.trim(),
       "description": _descCtrl.text.trim(),
@@ -93,9 +131,8 @@ class _AddItemPageState extends State<AddItemPage> {
 
     try {
       final uri = Uri.parse("$BASE_URL/api/items/add");
-      final request = http.MultipartRequest("POST", uri)
+      final req = http.MultipartRequest("POST", uri)
         ..headers["Authorization"] = "Bearer ${widget.token}"
-      // The 'item' part is JSON, we use fromString with contentType=application/json
         ..files.add(
           http.MultipartFile.fromString(
             'item',
@@ -104,12 +141,10 @@ class _AddItemPageState extends State<AddItemPage> {
           ),
         );
 
-      // Attach images
-      for (final img in _pickedImages) {
-        final file = File(img.path);
+      for (final file in _pickedFiles) {
         final stream = http.ByteStream(file.openRead());
         final length = await file.length();
-        request.files.add(
+        req.files.add(
           http.MultipartFile(
             'files',
             stream,
@@ -119,48 +154,44 @@ class _AddItemPageState extends State<AddItemPage> {
         );
       }
 
-      // Send request
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final streamed = await req.send();
+      final resp = await http.Response.fromStream(streamed);
       setState(() => _isLoading = false);
 
-      if (response.statusCode == 200) {
-        // Successfully created
+      if (resp.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Item added successfully!")),
         );
-        // Clear form
         _titleCtrl.clear();
         _descCtrl.clear();
         _priceCtrl.clear();
-        _pickedImages.clear();
-        setState(() => _selectedCategoryId = null);
-        // Navigate back to HomePage instead of closing the app
-        Navigator.pushReplacement(context, MaterialPageRoute(
-          builder: (context) => HomePage(token: widget.token),
-        ));
+        setState(() {
+          _pickedFiles.clear();
+          _selectedCategoryId = null;
+        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage(token: widget.token)),
+        );
       } else {
-        final body = response.body.isNotEmpty ? response.body : "{}";
+        final body = resp.body.isNotEmpty ? resp.body : "{}";
         final msg = jsonDecode(body)["message"] ?? "Item creation failed";
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Wrap with WillPopScope to override system back button
     return WillPopScope(
       onWillPop: () async {
-        // When back is pressed, navigate to HomePage
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomePage(token: widget.token)),
+          MaterialPageRoute(builder: (_) => HomePage(token: widget.token)),
         );
         return false;
       },
@@ -175,121 +206,116 @@ class _AddItemPageState extends State<AddItemPage> {
             ? const Center(child: CircularProgressIndicator())
             : SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Card(
-              color: const Color(0xFFB3D1B9),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      const Text(
-                        "Add Item Details",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const Text(
+                    "Add Item Details",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField("Title", _titleCtrl),
+                  const SizedBox(height: 16),
+                  _buildTextField("Description", _descCtrl, maxLines: 3),
+                  const SizedBox(height: 16),
+                  _buildTextField("Price", _priceCtrl,
+                      keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<int>(
+                    value: _selectedCategoryId,
+                    decoration: InputDecoration(
+                      prefixIcon:
+                      const Icon(Icons.category, color: Colors.green),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
                       ),
-                      const SizedBox(height: 16),
-                      _buildTextField("Title", _titleCtrl),
-                      const SizedBox(height: 16),
-                      _buildTextField("Description", _descCtrl, maxLines: 3),
-                      const SizedBox(height: 16),
-                      _buildTextField("Price", _priceCtrl,
-                          keyboardType: TextInputType.number),
-                      const SizedBox(height: 16),
-                      // Category Dropdown
-                      DropdownButtonFormField<int>(
-                        value: _selectedCategoryId,
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.category, color: Colors.green),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        hint: const Text("Choose Category"),
-                        items: _categories.map<DropdownMenuItem<int>>((cat) {
-                          return DropdownMenuItem<int>(
-                            value: cat["categoryId"],
-                            child: Text(cat["categoryName"]),
+                    ),
+                    hint: const Text("Choose Category"),
+                    items: _categories
+                        .map<DropdownMenuItem<int>>((cat) {
+                      return DropdownMenuItem<int>(
+                        value: cat["categoryId"],
+                        child: Text(cat["categoryName"]),
+                      );
+                    }).toList(),
+                    onChanged: (val) =>
+                        setState(() => _selectedCategoryId = val),
+                    validator: (val) =>
+                    val == null ? "Please select a category" : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Preview selected images
+                  if (_pickedFiles.isNotEmpty)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _pickedFiles.map((file) {
+                          return Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey),
+                              image: DecorationImage(
+                                image: FileImage(file),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           );
                         }).toList(),
-                        onChanged: (val) {
-                          setState(() => _selectedCategoryId = val);
-                        },
-                        validator: (val) =>
-                        val == null ? "Please select a category" : null,
                       ),
-                      const SizedBox(height: 16),
-                      // Image Previews
-                      if (_pickedImages.isNotEmpty)
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: _pickedImages.map((xfile) {
-                              return Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey),
-                                  image: DecorationImage(
-                                    image: FileImage(File(xfile.path)),
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                      // Button: Add image
-                      ElevatedButton.icon(
-                        onPressed: _pickImage,
-                        icon: const Icon(Icons.photo, color: Colors.green),
-                        label: Text(
-                          "Add Image (${_pickedImages.length}/5)",
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                    ),
+                  const SizedBox(height: 8),
+
+                  // Launch bottom‐sheet chooser
+                  ElevatedButton.icon(
+                    onPressed: _showImageSourceSheet,
+                    icon:
+                    const Icon(Icons.add_photo_alternate, color: Colors.green),
+                    label: Text(
+                      "Add Images (${_pickedFiles.length}/5)",
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 24),
-                      // Submit Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _saveItem,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text(
-                            "Submit",
-                            style: TextStyle(fontSize: 16, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveItem,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding:
+                        const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        "Submit",
+                        style:
+                        TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -300,12 +326,12 @@ class _AddItemPageState extends State<AddItemPage> {
 
   Widget _buildTextField(
       String label,
-      TextEditingController controller, {
+      TextEditingController ctrl, {
         int maxLines = 1,
         TextInputType keyboardType = TextInputType.text,
       }) {
     return TextFormField(
-      controller: controller,
+      controller: ctrl,
       maxLines: maxLines,
       keyboardType: keyboardType,
       decoration: InputDecoration(

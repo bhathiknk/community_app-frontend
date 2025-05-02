@@ -82,7 +82,7 @@ class _DonationsPageState extends State<DonationsPage> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavBar(selectedIndex: 2, token: widget.token),
+      bottomNavigationBar: BottomNavBar(selectedIndex: 1, token: widget.token),
     );
   }
 

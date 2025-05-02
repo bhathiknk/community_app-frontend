@@ -86,7 +86,7 @@ class _TradeItemDetailsPageState extends State<TradeItemDetailsPage> {
                   [
                     Icons.label_important, 'Title', _item!['title'],
                     Icons.description,      'Description', _item!['description'],
-                    Icons.attach_money,     'Price', '\$${_item!['price']}',
+                    Icons.attach_money,     'Price', '\Rs.${_item!['price']}',
                     Icons.info_outline,     'Status', _item!['status'],
                     Icons.calendar_today,   'Posted On', _item!['createdAt'],
                   ],

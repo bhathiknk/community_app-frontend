@@ -132,7 +132,7 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       bottomNavigationBar:
-      BottomNavBar(selectedIndex: 0, token: widget.token),
+      BottomNavBar(selectedIndex: 2, token: widget.token),
     );
   }
 

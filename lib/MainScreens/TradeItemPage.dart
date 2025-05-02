@@ -203,13 +203,13 @@ class _TradeItemPageState extends State<TradeItemPage>
     return Scaffold(
       backgroundColor: Colors.teal.shade700,
       appBar: AppBar(
+        automaticallyImplyLeading: false, // no back button
         backgroundColor: Colors.white,
         elevation: 1,
         title: Text(
           "Trade Items",
           style: TextStyle(
             color: Colors.black,
-            fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
@@ -242,7 +242,7 @@ class _TradeItemPageState extends State<TradeItemPage>
         ),
       ),
       bottomNavigationBar:
-      BottomNavBar(selectedIndex: 1, token: widget.token),
+      BottomNavBar(selectedIndex: 0, token: widget.token),
     );
   }
 
@@ -340,7 +340,7 @@ class _TradeItemPageState extends State<TradeItemPage>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      "₹ $price",
+                      "Rs. $price",
                       style: TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold),
                     ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../MainScreens/HomePage.dart';
+import '../MainScreens/TradeItemPage.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({Key? key}) : super(key: key);
@@ -76,10 +77,12 @@ class _SignInPageState extends State<SignInPage> {
             const SnackBar(content: Text('Login successful!')),
           );
 
-          // Navigate into the app
+          // Navigate to TradeItemPage instead of HomePage
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => HomePage(token: token)),
+            MaterialPageRoute(
+              builder: (_) => TradeItemPage(token: token),
+            ),
           );
           return; // ensure we don't show any error after success
         } else {

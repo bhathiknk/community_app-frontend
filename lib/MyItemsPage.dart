@@ -170,7 +170,7 @@ class _MyItemsPageState extends State<MyItemsPage> {
                             ),
                           ),
                           Text(
-                            "Price: \$${price}",
+                            "Price: \Rs.${price}",
                             style: const TextStyle(
                               fontSize: 16,
                               color: Colors.redAccent,

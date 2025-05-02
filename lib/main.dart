@@ -1,10 +1,11 @@
-import 'package:community_app/LogingPages/signin_page.dart';
-import 'package:community_app/welcome_page.dart';
 import 'package:flutter/material.dart';
-
+import 'LogingPages/signin_page.dart';
+import 'welcome_page.dart';
 import 'LogingPages/signup_page.dart';
 
-void main() {
+void main() async {
+  // ⚠️ Ensure plugin bindings are ready before runApp()
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -15,13 +16,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Community App',
-      // Set up named routes
       routes: {
         '/': (context) => const WelcomePage(),
         '/signin': (context) => const SignInPage(),
         '/signup': (context) => const SignUpPage(),
       },
-      // Initial route is the welcome page
       initialRoute: '/',
     );
   }
