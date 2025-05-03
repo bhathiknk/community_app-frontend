@@ -28,6 +28,11 @@ class _TradeItemPageState extends State<TradeItemPage>
 
   int _unreadCount = 0;
 
+  final List<String> _banners = [
+    'images/banner1.jpg',
+    'images/banner2.jpg',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -276,23 +281,60 @@ class _TradeItemPageState extends State<TradeItemPage>
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: Colors.teal.shade600))
-          : _allItems.isEmpty
-          ? Center(child: Text("No items found", style: TextStyle(color: Colors.grey)))
-          : FadeTransition(
-        opacity: _animCtrl.drive(CurveTween(curve: Curves.easeIn)),
-        child: RefreshIndicator(
-          color: Colors.teal.shade600,
-          onRefresh: () => _fetchAllActiveTradeItems(
-            search: _searchCtrl.text,
-            categoryId: _selectedCategoryId,
+          : Column(
+        children: [
+          // Top banner slider
+          CarouselSlider(
+            items: _banners.map((path) {
+              return ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                child: AspectRatio(
+                  aspectRatio: 16 / 7,
+                  child: Image.asset(
+                    path,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              );
+
+            }).toList(),
+            options: CarouselOptions(
+              height: 180,
+              viewportFraction: 1.0,
+              autoPlay: true,
+              autoPlayInterval: const Duration(seconds: 5),
+              autoPlayCurve: Curves.easeInOut,       // smooth ease
+              scrollDirection: Axis.vertical,
+              enlargeCenterPage: false,
+            ),
           ),
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            itemCount: _allItems.length,
-            itemBuilder: (_, i) => _itemCard(_allItems[i]),
+          const SizedBox(height: 12),
+          // List of items
+          Expanded(
+            child: _allItems.isEmpty
+                ? Center(child: Text("No items found", style: TextStyle(color: Colors.grey)))
+                : FadeTransition(
+              opacity: _animCtrl.drive(CurveTween(curve: Curves.easeIn)),
+              child: RefreshIndicator(
+                color: Colors.teal.shade600,
+                onRefresh: () => _fetchAllActiveTradeItems(
+                  search: _searchCtrl.text,
+                  categoryId: _selectedCategoryId,
+                ),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  itemCount: _allItems.length,
+                  itemBuilder: (_, i) => _itemCard(_allItems[i]),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
       bottomNavigationBar: BottomNavBar(selectedIndex: 0, token: widget.token),
     );
