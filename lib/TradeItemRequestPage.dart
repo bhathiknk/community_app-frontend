@@ -8,6 +8,7 @@ import 'SenderItemSelectionPage.dart';
 class TradeItemRequestPage extends StatefulWidget {
   final String token;
   final String currentUserId;
+
   const TradeItemRequestPage({
     Key? key,
     required this.token,
@@ -21,13 +22,13 @@ class TradeItemRequestPage extends StatefulWidget {
 class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   static const String BASE_URL = "http://10.0.2.2:8080";
   bool _isLoading = false;
-  List<dynamic> _detailedRequests = [];
+  List<dynamic> _incoming = [];
+  List<dynamic> _outgoing = [];
 
-  // WillPopScope fix
   Future<bool> _onWillPop() async {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => HomePage(token: widget.token)),
+      MaterialPageRoute(builder: (_) => HomePage(token: widget.token)),
     );
     return false;
   }
@@ -35,35 +36,43 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   @override
   void initState() {
     super.initState();
-    _fetchIncomingRequestsDetailed();
+    _fetchAllRequests();
   }
 
-  Future<void> _fetchIncomingRequestsDetailed() async {
+  Future<void> _fetchAllRequests() async {
     setState(() => _isLoading = true);
     try {
-      final resp = await http.get(
+      final incResp = await http.get(
         Uri.parse("$BASE_URL/api/trade/requests/incoming/detailed"),
-        headers: {
-          "Authorization": "Bearer ${widget.token}",
-          "Content-Type": "application/json",
-        },
+        headers: {"Authorization": "Bearer ${widget.token}"},
       );
-      setState(() => _isLoading = false);
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as List;
+      final outResp = await http.get(
+        Uri.parse("$BASE_URL/api/trade/requests/outgoing/detailed"),
+        headers: {"Authorization": "Bearer ${widget.token}"},
+      );
+      if (incResp.statusCode == 200 && outResp.statusCode == 200) {
         setState(() {
-          _detailedRequests = data;
+          _incoming = jsonDecode(incResp.body);
+          _outgoing = jsonDecode(outResp.body);
         });
       } else {
-        final msg =
-            jsonDecode(resp.body)["message"] ?? "Failed to load requests";
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(msg)));
+        final incMsg = incResp.statusCode != 200
+            ? jsonDecode(incResp.body)["message"] ?? "Failed loading incoming"
+            : "";
+        final outMsg = outResp.statusCode != 200
+            ? jsonDecode(outResp.body)["message"] ?? "Failed loading outgoing"
+            : "";
+        final msg = "$incMsg $outMsg".trim();
+        if (msg.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        }
       }
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error loading requests: $e")),
+      );
+    } finally {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -74,13 +83,13 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
             "$BASE_URL/api/trade/requests/$requestId/approve?selectedItemId=$selectedItemId"),
         headers: {
           "Authorization": "Bearer ${widget.token}",
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         },
       );
       if (resp.statusCode == 200) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text("Request Approved")));
-        _fetchIncomingRequestsDetailed();
+        _fetchAllRequests();
       } else {
         final msg = jsonDecode(resp.body)["message"] ?? "Failed to approve";
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -97,13 +106,13 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         Uri.parse("$BASE_URL/api/trade/requests/$requestId/reject"),
         headers: {
           "Authorization": "Bearer ${widget.token}",
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         },
       );
       if (resp.statusCode == 200) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text("Request Rejected")));
-        _fetchIncomingRequestsDetailed();
+        _fetchAllRequests();
       } else {
         final msg = jsonDecode(resp.body)["message"] ?? "Failed to reject";
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -115,26 +124,23 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   }
 
   Future<List<dynamic>> _fetchSenderItems(String senderUserId) async {
-    final url = "$BASE_URL/api/trade/requests/sender/$senderUserId/items";
     try {
       final resp = await http.get(
-        Uri.parse(url),
+        Uri.parse("$BASE_URL/api/trade/requests/sender/$senderUserId/items"),
         headers: {
           "Authorization": "Bearer ${widget.token}",
           "Content-Type": "application/json"
         },
       );
       if (resp.statusCode == 200) {
-        return jsonDecode(resp.body) as List;
+        return jsonDecode(resp.body);
       } else {
         final msg =
             jsonDecode(resp.body)["message"] ?? "Failed to load sender's items";
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error fetching sender items: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
     return [];
   }
@@ -142,597 +148,248 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
   void _showApproveDialog(String requestId,
       {required String tradeType, required String senderId}) async {
     if (tradeType == "ITEM") {
-      final senderItems = await _fetchSenderItems(senderId);
-      final selectedItemId = await Navigator.push<String>(
+      final items = await _fetchSenderItems(senderId);
+      final selected = await Navigator.push<String>(
         context,
         MaterialPageRoute(
-          builder: (context) => SenderItemSelectionPage(senderItems: senderItems),
+          builder: (_) => SenderItemSelectionPage(senderItems: items),
           fullscreenDialog: true,
         ),
       );
-      if (selectedItemId != null && selectedItemId.isNotEmpty) {
-        _approveRequest(requestId, selectedItemId);
+      if (selected != null && selected.isNotEmpty) {
+        _approveRequest(requestId, selected);
       }
     } else {
       _approveRequest(requestId, "");
     }
   }
 
-  /// Displays a clean, attractive dialog for pending or rejected requests.
   void _showRequestDetailsDialog(Map<String, dynamic> req,
       {required bool showActions}) {
-    final requestId = req["requestId"];
-    final offeredByName = req["offeredByUserName"] ?? "Unknown";
-    final tradeType = req["tradeType"] ?? "MONEY";
-    final requestedTitle = req["requestedItemTitle"] ?? "??";
-    final requestedDescription = req["requestedItemDescription"] ?? "";
-    final requestedPrice = req["requestedItemPrice"]?.toString() ?? "0.0";
-    final requestedImages = req["requestedItemImages"] as List<dynamic>? ?? [];
+    final id = req["requestId"];
+    // use showActions to distinguish incoming vs sent
+    final name = showActions
+        ? (req["offeredByUserName"] ?? "Unknown")
+        : (req["receiverFullName"] ?? "Unknown");
+    final type = req["tradeType"] ?? "MONEY";
+    final title = req["requestedItemTitle"] ?? "";
+    final desc = req["requestedItemDescription"] ?? "";
+    final price = req["requestedItemPrice"]?.toString() ?? "0.0";
+    final imgs = (req["requestedItemImages"] as List<dynamic>?) ?? [];
 
     showDialog(
       context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          elevation: 10,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          insetPadding:
-          const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Header with title and close button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          "Request from $offeredByName",
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(context).pop(),
-                      )
-                    ],
-                  ),
-                  const Divider(thickness: 1.3),
-                  const SizedBox(height: 8),
-                  _buildItemSection(
-                    label: "Your Item",
-                    title: requestedTitle,
-                    description: requestedDescription,
-                    price: requestedPrice,
-                    imageUrls: requestedImages,
-                  ),
-                  const SizedBox(height: 16),
-                  if (tradeType == "MONEY")
-                    Text(
-                      "Offered Money: \$${(req["moneyOffer"] as num).toStringAsFixed(2)}",
-                      style: const TextStyle(fontSize: 16),
-                    )
-                  else if (tradeType == "ITEM")
-                    const Text(
-                      "Sender wants to trade with an item instead of money.",
-                      style: TextStyle(fontSize: 16),
+                  Flexible(
+                    child: Text(
+                      "${showActions ? "Request from" : "Request to"} $name",
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                  const SizedBox(height: 16),
-                  if (showActions)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _rejectRequest(requestId);
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            "REJECT",
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _showApproveDialog(
-                              requestId,
-                              tradeType: tradeType,
-                              senderId: req["offeredByUserId"],
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            "APPROVE",
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    )
+                  ),
+                  IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context)),
                 ],
               ),
-            ),
+              const Divider(thickness: 1.3),
+              const SizedBox(height: 8),
+              _buildItemSection(
+                label: "Your Item",
+                title: title,
+                description: desc,
+                price: price,
+                imageUrls: imgs,
+              ),
+              const SizedBox(height: 16),
+              if (type == "MONEY")
+                Text(
+                    "Offered Money: \$${(req["moneyOffer"] as num).toStringAsFixed(2)}")
+              else
+                const Text("Sender wants to trade with an item."),
+              const SizedBox(height: 16),
+              if (showActions)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _rejectRequest(id);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                      child: const Text("REJECT"),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showApproveDialog(id,
+                            tradeType: type, senderId: req["offeredByUserId"]);
+                      },
+                      style:
+                      ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      child: const Text("APPROVE"),
+                    ),
+                  ],
+                )
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  /// Displays a clean, attractive dialog for accepted requests.
-  void _showAcceptedRequestDetailsDialog(Map<String, dynamic> req) {
-    final offeredByName = req["offeredByUserName"] ?? "Unknown";
-    final requestedTitle = req["requestedItemTitle"] ?? "??";
-    final requestedDescription = req["requestedItemDescription"] ?? "";
-    final requestedPrice = req["requestedItemPrice"]?.toString() ?? "0.0";
-    final requestedImages = req["requestedItemImages"] as List<dynamic>? ?? [];
-    final offeredItemTitle = req["offeredItemTitle"] ?? "";
-    final offeredItemDescription = req["offeredItemDescription"] ?? "";
-    final offeredItemPrice = req["offeredItemPrice"]?.toString() ?? "";
-    final offeredItemImages = req["offeredItemImages"] as List<dynamic>? ?? [];
-    final senderEmail = req["senderEmail"] ?? "";
-    final senderPhone = req["senderPhone"] ?? "";
-    final senderAddress = req["senderAddress"] ?? "";
+  void _showAcceptedRequestDetailsDialog(Map<String, dynamic> req,
+      {required bool incoming}) {
+    final name = incoming
+        ? (req["offeredByUserName"] ?? "Unknown")
+        : (req["receiverFullName"] ?? "Unknown");
+    final title = req["requestedItemTitle"] ?? "";
+    final desc = req["requestedItemDescription"] ?? "";
+    final price = req["requestedItemPrice"]?.toString() ?? "";
+    final imgsReq = (req["requestedItemImages"] as List<dynamic>?) ?? [];
+    final offTitle = req["offeredItemTitle"] ?? "";
+    final offDesc = req["offeredItemDescription"] ?? "";
+    final offPrice = req["offeredItemPrice"]?.toString() ?? "";
+    final imgsOff = (req["offeredItemImages"] as List<dynamic>?) ?? [];
+    final email = req["senderEmail"] ?? "";
+    final phone = req["senderPhone"] ?? "";
+    final addr = req["senderAddress"] ?? "";
 
     showDialog(
       context: context,
-      barrierDismissible: true, // allows tapping outside to close
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent, // Transparent for custom shapes
-          elevation: 0,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Main gradient background container
-              Container(
-                margin: const EdgeInsets.only(top: 60),
-                // leaves space for the circle
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFB3D1B9), Colors.green],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+      barrierDismissible: true,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 60),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFB3D1B9), Colors.green],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 70, 20, 20),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Title
-                          Text(
-                            "Accepted Request from $offeredByName",
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const Divider(
-                            thickness: 1.3,
-                            color: Colors.white54,
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Your Item
-                          _buildColoredSection(
-                            "Your Item",
-                            _buildItemSection(
-                              label: "Item",
-                              title: requestedTitle,
-                              description: requestedDescription,
-                              price: requestedPrice,
-                              imageUrls: requestedImages,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Offered Item Header
-                          _buildSectionHeader("Offered Item Details"),
-                          const SizedBox(height: 8),
-
-                          // Offered Item Fields
-                          Text(
-                            "Title: $offeredItemTitle",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Description: $offeredItemDescription",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Price: \$$offeredItemPrice",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _buildImageSlideshow(offeredItemImages),
-                          const SizedBox(height: 16),
-
-                          // Sender contact
-                          _buildSectionHeader("Sender Contact Information"),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Name: $offeredByName",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            "Email: $senderEmail",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            "Phone: $senderPhone",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            "Address: $senderAddress",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 70, 20, 20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        incoming
+                            ? "Accepted Request from $name"
+                            : "Accepted Request to $name",
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Circle Avatar or Icon at the top (floating effect)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.transparent,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [Colors.green, Colors.teal],
-                        center: Alignment.center,
-                        radius: 0.9,
+                      const Divider(color: Colors.white54),
+                      const SizedBox(height: 10),
+                      _buildColoredSection(
+                        "Your Item",
+                        _buildItemSection(
+                          label: "Item",
+                          title: title,
+                          description: desc,
+                          price: price,
+                          imageUrls: imgsReq,
+                        ),
                       ),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      size: 56,
-                      color: Colors.white,
-                    ),
+                      const SizedBox(height: 16),
+                      _buildSectionHeader("Offered Item Details"),
+                      const SizedBox(height: 8),
+                      Text("Title: $offTitle", style: const TextStyle(color: Colors.white)),
+                      Text("Description: $offDesc", style: const TextStyle(color: Colors.white)),
+                      Text("Price: \$$offPrice", style: const TextStyle(color: Colors.white)),
+                      const SizedBox(height: 8),
+                      _buildImageSlideshow(imgsOff),
+                      const SizedBox(height: 16),
+                      _buildSectionHeader("Sender Contact Information"),
+                      Text("Email: $email", style: const TextStyle(color: Colors.white)),
+                      Text("Phone: $phone", style: const TextStyle(color: Colors.white)),
+                      Text("Address: $addr", style: const TextStyle(color: Colors.white)),
+                    ],
                   ),
                 ),
               ),
-
-              // Close button in the top-right corner (over the avatar area)
-              Positioned(
-                right: 0,
-                top: 8,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [Colors.green, Colors.teal],
+                      center: Alignment.center,
+                      radius: 0.9,
+                    ),
+                  ),
+                  child: const Icon(Icons.check_circle, size: 56, color: Colors.white),
                 ),
               ),
-            ],
-          ),
-        );
-      },
+            ),
+            Positioned(
+              right: 0,
+              top: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // Helper for coloring sections
   Widget _buildColoredSection(String title, Widget child) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
           child: child,
         ),
       ],
     );
   }
 
-  // Helper for section headers
   Widget _buildSectionHeader(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-    );
+    return Text(text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Filter requests based on status.
-    final pendingRequests =
-    _detailedRequests.where((req) => req["status"] == "PENDING").toList();
-    final acceptedRequests =
-    _detailedRequests.where((req) => req["status"] == "ACCEPTED").toList();
-    final rejectedRequests =
-    _detailedRequests.where((req) => req["status"] == "REJECTED").toList();
-
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          backgroundColor: const Color(0xFFECF3EC),
-          appBar: AppBar(
-            title: const Text(
-              "Incoming Trade Requests",
-              style: TextStyle(color: Colors.black),
-            ),
-            backgroundColor: Colors.white,
-            elevation: 2,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => HomePage(token: widget.token),
-                  ),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none, color: Colors.black),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => NotificationPage(token: widget.token),
-                    ),
-                  );
-                },
-              ),
-            ],
-            bottom: const TabBar(
-              indicatorColor: Colors.green,
-              labelColor: Colors.green,
-              unselectedLabelColor: Colors.grey,
-              tabs: [
-                Tab(text: 'Pending'),
-                Tab(text: 'Accepted'),
-                Tab(text: 'Rejected'),
-              ],
-            ),
-          ),
-          body: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : TabBarView(
-            children: [
-              _buildRequestList(pendingRequests, showActions: true),
-              _buildAcceptedList(acceptedRequests),
-              _buildRejectedList(rejectedRequests),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // List builder for pending requests
-  Widget _buildRequestList(List<dynamic> requests, {required bool showActions}) {
-    if (requests.isEmpty) {
-      return const Center(child: Text("No requests found."));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: requests.length,
-      itemBuilder: (context, i) {
-        final req = requests[i];
-        final offeredByName = req["offeredByUserName"] ?? "Unknown";
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          child: Card(
-            color: Colors.white,
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ListTile(
-              contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              leading: CircleAvatar(
-                backgroundColor: Colors.green.withOpacity(0.1),
-                child: const Icon(Icons.swap_horiz, color: Colors.green),
-              ),
-              title: Text(
-                "Request from $offeredByName",
-                style:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text("Status: ${req["status"]}"),
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.open_in_new),
-                color: Colors.grey[700],
-                onPressed: () =>
-                    _showRequestDetailsDialog(req, showActions: showActions),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Accepted requests list builder.
-  Widget _buildAcceptedList(List<dynamic> requests) {
-    if (requests.isEmpty) {
-      return const Center(child: Text("No accepted requests found."));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: requests.length,
-      itemBuilder: (context, i) {
-        final req = requests[i];
-        final offeredByName = req["offeredByUserName"] ?? "Unknown";
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          child: Card(
-            color: Colors.white,
-            elevation: 2,
-            shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue.withOpacity(0.1),
-                child: const Icon(Icons.check_circle, color: Colors.blue),
-              ),
-              title: Text(
-                "Request from $offeredByName",
-                style:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text("Status: ACCEPTED"),
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.open_in_new),
-                color: Colors.grey[700],
-                onPressed: () {
-                  _showAcceptedRequestDetailsDialog(req);
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Rejected requests list builder (red theme).
-  Widget _buildRejectedList(List<dynamic> requests) {
-    if (requests.isEmpty) {
-      return const Center(child: Text("No rejected requests found."));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: requests.length,
-      itemBuilder: (context, i) {
-        final req = requests[i];
-        final offeredByName = req["offeredByUserName"] ?? "Unknown";
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          child: Card(
-            color: Colors.white,
-            elevation: 2,
-            shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              leading: CircleAvatar(
-                backgroundColor: Colors.red.withOpacity(0.1),
-                child: const Icon(Icons.cancel, color: Colors.red),
-              ),
-              title: Text(
-                "Request from $offeredByName",
-                style:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text("Status: REJECTED"),
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.open_in_new),
-                color: Colors.red,
-                onPressed: () {
-                  // Even though it's rejected, we can still show the details
-                  _showRequestDetailsDialog(req, showActions: false);
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Utility widget for displaying item details.
   Widget _buildItemSection({
     required String label,
     required String title,
@@ -743,68 +400,198 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "$label: $title",
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        if (description.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              "Description: $description",
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-        if (price != "0.0")
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              "Price: \$$price",
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-        const SizedBox(height: 12),
+        Text("$label: $title", style: const TextStyle(fontWeight: FontWeight.bold)),
+        if (description.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text("Description: $description")),
+        if (price != "0.0") Padding(padding: const EdgeInsets.only(top: 4), child: Text("Price: \$$price")),
+        const SizedBox(height: 8),
         _buildImageSlideshow(imageUrls),
       ],
     );
   }
 
-  // Utility widget for the horizontal image slideshow.
   Widget _buildImageSlideshow(List<dynamic> imageUrls) {
-    if (imageUrls.isEmpty) {
-      return const Text("No images available", style: TextStyle(fontSize: 14));
-    }
+    if (imageUrls.isEmpty) return const Text("No images available");
     return SizedBox(
       height: 100,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: imageUrls.length,
-        itemBuilder: (ctx, idx) {
-          final url = imageUrls[idx];
+        itemBuilder: (_, i) {
+          final url = imageUrls[i];
           return Container(
             width: 120,
             margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.grey[200],
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.grey[200]),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (ctx, e, stack) => Container(
-                  color: Colors.redAccent.withOpacity(0.1),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    "Error",
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              ),
+              child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Text("Error"))),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildRequestList(List<dynamic> requests, {required bool incoming}) {
+    if (requests.isEmpty) {
+      return const Center(child: Text("No requests found."));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: requests.length,
+      itemBuilder: (ctx, i) {
+        final req = requests[i];
+        final otherName = incoming
+            ? (req["offeredByUserName"] ?? "Unknown")
+            : (req["receiverFullName"] ?? "Unknown");
+        final titleText = incoming
+            ? "Request from $otherName"
+            : "Request to $otherName";
+        return Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor:
+              incoming ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+              child: Icon(
+                incoming ? Icons.swap_horiz : Icons.swap_horiz_outlined,
+                color: incoming ? Colors.green : Colors.orange,
+              ),
+            ),
+            title: Text(titleText, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("Status: ${req["status"]}"),
+            trailing: IconButton(
+              icon: const Icon(Icons.open_in_new),
+              onPressed: () {
+                if (req["status"] == "ACCEPTED") {
+                  _showAcceptedRequestDetailsDialog(req, incoming: incoming);
+                } else {
+                  _showRequestDetailsDialog(req, showActions: incoming);
+                }
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAcceptedList(List<dynamic> requests, {required bool incoming}) {
+    if (requests.isEmpty) {
+      return Center(child: Text(incoming ? "No accepted incoming." : "No accepted sent."));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: requests.length,
+      itemBuilder: (ctx, i) {
+        final req = requests[i];
+        final otherName = incoming
+            ? (req["offeredByUserName"] ?? "Unknown")
+            : (req["receiverFullName"] ?? "Unknown");
+        final titleText = incoming
+            ? "Request from $otherName"
+            : "Request to $otherName";
+        return Card(
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor:
+              incoming ? Colors.blue.withOpacity(0.1) : Colors.purple.withOpacity(0.1),
+              child: Icon(
+                incoming ? Icons.check_circle : Icons.check_circle_outline,
+                color: incoming ? Colors.blue : Colors.purple,
+              ),
+            ),
+            title: Text(titleText, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text("Status: ACCEPTED"),
+            trailing: IconButton(
+              icon: const Icon(Icons.open_in_new),
+              onPressed: () => _showAcceptedRequestDetailsDialog(req, incoming: incoming),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusTabs(List<dynamic> list, {required bool incoming}) {
+    final pending = list.where((r) => r["status"] == "PENDING").toList();
+    final accepted = list.where((r) => r["status"] == "ACCEPTED").toList();
+    final rejected = list.where((r) => r["status"] == "REJECTED").toList();
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          Material(
+            color: Colors.white,
+            child: TabBar(
+              indicatorColor: Colors.green,
+              labelColor: Colors.green,
+              unselectedLabelColor: Colors.grey,
+              tabs: const [
+                Tab(text: "Pending"),
+                Tab(text: "Accepted"),
+                Tab(text: "Rejected"),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildRequestList(pending, incoming: incoming),
+                _buildAcceptedList(accepted, incoming: incoming),
+                _buildRequestList(rejected, incoming: incoming),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: const Color(0xFFECF3EC),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            title: const Text("Trade Requests", style: TextStyle(color: Colors.black)),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => _onWillPop(),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.black),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => NotificationPage(token: widget.token)),
+                  );
+                },
+              ),
+            ],
+            bottom: const TabBar(
+              indicatorColor: Colors.green,
+              labelColor: Colors.green,
+              unselectedLabelColor: Colors.grey,
+              tabs: [Tab(text: "Incoming"), Tab(text: "Sent")],
+            ),
+          ),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+            children: [
+              _buildStatusTabs(_incoming, incoming: true),
+              _buildStatusTabs(_outgoing, incoming: false),
+            ],
+          ),
+        ),
       ),
     );
   }
