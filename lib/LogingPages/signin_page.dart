@@ -1,12 +1,17 @@
+// lib/LogingPages/signin_page.dart
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../MainScreens/HomePage.dart';
-import '../MainScreens/TradeItemPage.dart';
-
 class SignInPage extends StatefulWidget {
-  const SignInPage({Key? key}) : super(key: key);
+  /// Called when sign-in succeeds, passing the auth token.
+  final void Function(String token) onSignedIn;
+
+  const SignInPage({
+    Key? key,
+    required this.onSignedIn,
+  }) : super(key: key);
 
   @override
   State<SignInPage> createState() => _SignInPageState();
@@ -14,37 +19,33 @@ class SignInPage extends StatefulWidget {
 
 class _SignInPageState extends State<SignInPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  static const _baseUrl = "http://10.0.2.2:8080";
 
-  static const String BASE_URL = "http://10.0.2.2:8080";
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      labelStyle: const TextStyle(color: Colors.black87),
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide.none,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide.none,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
-    );
-  }
+  InputDecoration _inputDecoration(String label) => InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: Colors.white,
+    labelStyle: const TextStyle(color: Colors.black87),
+    enabledBorder: OutlineInputBorder(
+      borderSide: BorderSide.none,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderSide: BorderSide.none,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    contentPadding: const EdgeInsets.symmetric(
+        vertical: 18.0, horizontal: 16.0),
+  );
 
   Future<void> _signIn() async {
-    // 1) Validate form fields
     if (!_formKey.currentState!.validate()) return;
 
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    final email = _emailCtrl.text.trim();
+    final pass = _passCtrl.text.trim();
 
-    // 2) Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -52,70 +53,47 @@ class _SignInPageState extends State<SignInPage> {
     );
 
     try {
-      // 3) Make POST request
-      final response = await http.post(
-        Uri.parse("$BASE_URL/api/auth/signin"),
+      final resp = await http.post(
+        Uri.parse("$_baseUrl/api/auth/signin"),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "email": email,
-          "password": password,
-        }),
+        body: jsonEncode({"email": email, "password": pass}),
       );
+      Navigator.pop(context); // close spinner
 
-      // 4) Close loading dialog
-      Navigator.pop(context);
-
-      // 5) Check response status
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        // Token logic: Must be non-null & non-empty to succeed
-        final token = data["token"];
-        if (token != null && token is String && token.isNotEmpty) {
-          // Show success & proceed
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        final token = data["token"] as String?;
+        if (token != null && token.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Login successful!')),
           );
-
-          // Navigate to TradeItemPage instead of HomePage
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TradeItemPage(token: token),
-            ),
-          );
-          return; // ensure we don't show any error after success
-        } else {
-          // If token is empty or null, treat it as login failure
-          _showError("Login failed. Please try again.");
+          widget.onSignedIn(token);
           return;
         }
-      } else {
-        // Non-200 => use message from server if available
-        final error = jsonDecode(response.body);
-        _showError(error["message"] ?? "Invalid credentials.");
-        return;
       }
-    } catch (e) {
-      // 6) Catch network/JSON errors
+
+      // failure path
+      final err = resp.statusCode != 200
+          ? jsonDecode(resp.body)["message"] ?? "Invalid credentials"
+          : "Login failed";
+      _showError(err);
+    } catch (_) {
       Navigator.pop(context);
-      _showError("Something went wrong. Please check your connection.");
-      return;
+      _showError("Network error — please try again.");
     }
   }
 
-  void _showError(String message) {
-    // We show an AlertDialog for errors
+  void _showError(String msg) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Oops!"),
-        content: Text(message),
+        content: Text(msg),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Try Again"),
-          ),
+            child: const Text("OK"),
+          )
         ],
       ),
     );
@@ -126,12 +104,11 @@ class _SignInPageState extends State<SignInPage> {
     return Scaffold(
       backgroundColor: Colors.teal.shade700,
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Center(
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // Top image
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Image.asset(
@@ -141,56 +118,50 @@ class _SignInPageState extends State<SignInPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Title
                 const Text(
                   "Welcome Back",
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold,color: Colors.white)
+                  style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
                 const SizedBox(height: 20),
-
-                // Form
                 Form(
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Email
                       TextFormField(
-                        controller: _emailController,
+                        controller: _emailCtrl,
                         decoration: _inputDecoration('Email'),
-                        validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Enter your email' : null,
+                        validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Enter email' : null,
                       ),
                       const SizedBox(height: 16),
-
-                      // Password
                       TextFormField(
-                        controller: _passwordController,
+                        controller: _passCtrl,
                         obscureText: true,
                         decoration: _inputDecoration('Password'),
-                        validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Enter your password' : null,
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'Enter password'
+                            : null,
                       ),
                       const SizedBox(height: 24),
-
-                      // Sign In button
                       ElevatedButton(
                         onPressed: _signIn,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 40, vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Text('Sign In'),
                       ),
                       const SizedBox(height: 16),
-
-                      // Link to Sign Up
                       GestureDetector(
-                        onTap: () => Navigator.pushReplacementNamed(context, '/signup'),
+                        onTap: () =>
+                            Navigator.pushReplacementNamed(context, '/signup'),
                         child: const Text(
                           "Don’t have an account? Sign Up",
                           style: TextStyle(color: Colors.white),
@@ -198,7 +169,7 @@ class _SignInPageState extends State<SignInPage> {
                       )
                     ],
                   ),
-                ),
+                )
               ],
             ),
           ),
