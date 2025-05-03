@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'TradeItemRequestPage.dart';
 
 class NotificationPage extends StatefulWidget {
   final String token;
@@ -13,80 +14,43 @@ class NotificationPage extends StatefulWidget {
 class _NotificationPageState extends State<NotificationPage> {
   static const String BASE_URL = "http://10.0.2.2:8080";
   bool _isLoading = false;
-  List<dynamic> _notifications = [];
+  List<dynamic> _notes = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchNotifications();
+    _fetchNotes();
   }
 
-  Future<void> _fetchNotifications() async {
+  Future<void> _fetchNotes() async {
     setState(() => _isLoading = true);
     try {
       final resp = await http.get(
-        Uri.parse("$BASE_URL/api/notifications/me"),
-        headers: {
-          "Authorization": "Bearer ${widget.token}",
-          "Content-Type": "application/json",
-        },
+        Uri.parse("$BASE_URL/api/notifications/me/detailed"),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
       );
+      if (resp.statusCode == 200) {
+        setState(() => _notes = jsonDecode(resp.body));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load notifications')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
       setState(() => _isLoading = false);
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as List;
-        setState(() {
-          _notifications = data;
-        });
-      } else {
-        final msg = jsonDecode(resp.body)["message"] ?? "Failed to load notifications";
-        _showError(msg);
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showError("Error: $e");
     }
   }
 
-  Future<void> _markAsRead(String notificationId, bool read) async {
-    try {
-      final resp = await http.put(
-        Uri.parse("$BASE_URL/api/notifications/$notificationId/read?read=$read"),
-        headers: {
-          "Authorization": "Bearer ${widget.token}",
-          "Content-Type": "application/json",
-        },
-      );
-      if (resp.statusCode == 200) {
-        _fetchNotifications();
-      } else {
-        _showError("Failed to update notification");
-      }
-    } catch (e) {
-      _showError("Error: $e");
-    }
-  }
-
-  Future<void> _deleteNotification(String notificationId) async {
-    try {
-      final resp = await http.delete(
-        Uri.parse("$BASE_URL/api/notifications/$notificationId"),
-        headers: {
-          "Authorization": "Bearer ${widget.token}",
-          "Content-Type": "application/json",
-        },
-      );
-      if (resp.statusCode == 200) {
-        _fetchNotifications();
-      } else {
-        _showError("Failed to delete notification");
-      }
-    } catch (e) {
-      _showError("Error: $e");
-    }
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  Future<void> _markRead(String id, bool read) async {
+    await http.put(
+      Uri.parse("$BASE_URL/api/notifications/$id/read?read=$read"),
+      headers: {'Authorization': 'Bearer ${widget.token}'},
+    );
+    _fetchNotes();
   }
 
   @override
@@ -94,70 +58,73 @@ class _NotificationPageState extends State<NotificationPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
-        centerTitle: true,
         title: const Text("Notifications", style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black),
-        elevation: 1,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _notifications.isEmpty
+          : _notes.isEmpty
           ? const Center(
-        child: Text(
-          "You have no notifications.",
-          style: TextStyle(fontSize: 16, color: Colors.black54),
-        ),
-      )
+          child: Text("No notifications", style: TextStyle(color: Colors.black54)))
           : ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        itemCount: _notifications.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final notif = _notifications[index];
-          final id = notif["notificationId"];
-          final message = notif["message"] ?? "No message";
-          final isRead = notif["read"] ?? false;
-          final createdAt = notif["createdAt"]?.toString().split(".")[0] ?? "";
+        padding: const EdgeInsets.all(12),
+        itemCount: _notes.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) {
+          final n = _notes[i];
+          final read = n['read'] as bool? ?? false;
+          final msg = n['message'] as String? ?? '';
+          final when = (n['createdAt'] as String?)?.split('.')[0] ?? '';
+          final type = n['referenceType'] as String? ?? 'UNKNOWN';
+          final refId = n['referenceId'] as String? ?? '';
 
-          return Container(
-            decoration: BoxDecoration(
-              color: isRead ? Colors.white : const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(8),
-            ),
+          return Card(
+            color: read ? Colors.white : const Color(0xFFE8F5E9),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              leading: CircleAvatar(
-                radius: 20,
-                backgroundColor: isRead ? Colors.grey[300] : Colors.green,
-                child: Icon(
-                  isRead ? Icons.notifications_none : Icons.notifications_active,
-                  color: Colors.white,
-                ),
+              contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Icon(
+                read ? Icons.mark_email_read : Icons.mark_email_unread,
+                color: read ? Colors.grey : Colors.green,
               ),
-              title: Text(
-                message,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-              subtitle: Text(
-                createdAt,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+              title: Text(msg,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.done_all, color: Colors.blue),
-                    tooltip: "Mark as Read",
-                    onPressed: () => _markAsRead(id, true),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    tooltip: "Delete",
-                    onPressed: () => _deleteNotification(id),
-                  ),
+                  Text(when,
+                      style:
+                      const TextStyle(fontSize: 12, color: Colors.black54)),
+                  const SizedBox(height: 4),
+                  Text("Type: $type",
+                      style: const TextStyle(fontSize: 12)),
+                  Text("ID: $refId", style: const TextStyle(fontSize: 12)),
                 ],
               ),
+              isThreeLine: true,
+              trailing: IconButton(
+                icon: Icon(read ? Icons.close : Icons.done),
+                tooltip: read ? "Mark unread" : "Mark read",
+                onPressed: () => _markRead(n['notificationId'], !read),
+              ),
+              onTap: () {
+                if (type == 'TRADE_REQUEST') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TradeItemRequestPage(
+                        token: widget.token,
+                        initialRequestId: refId,
+                        initialIsIncoming: false,
+                      ),
+                    ),
+                  );
+                }
+                // TODO: handle DONATION_REQUEST the same way
+              },
             ),
           );
         },

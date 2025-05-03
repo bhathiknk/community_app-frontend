@@ -9,10 +9,7 @@ import 'TradeItemRequestPage.dart';
 
 class CustomTabSelector extends StatefulWidget {
   final String token;
-  final String currentUserId;
-  const CustomTabSelector(
-      {Key? key, required this.token, required this.currentUserId})
-      : super(key: key);
+  const CustomTabSelector({Key? key, required this.token}) : super(key: key);
 
   @override
   State<CustomTabSelector> createState() => _CustomTabSelectorState();
@@ -31,7 +28,9 @@ class _CustomTabSelectorState extends State<CustomTabSelector> {
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 2),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(30)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
           child: Row(
             children: List.generate(_tabs.length, (i) {
               final sel = _selected == i;
@@ -49,8 +48,9 @@ class _CustomTabSelectorState extends State<CustomTabSelector> {
                       child: Text(
                         _tabs[i],
                         style: TextStyle(
-                            color: sel ? Colors.white : Colors.teal,
-                            fontWeight: FontWeight.w600),
+                          color: sel ? Colors.white : Colors.teal,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -78,11 +78,8 @@ class _CustomTabSelectorState extends State<CustomTabSelector> {
             () => _push(AddItemPage(token: widget.token))),
     _action("My Items", Icons.inventory,
             () => _push(MyItemsPage(token: widget.token))),
-    _action(
-        "Trade Request",
-        Icons.swap_horiz,
-            () => _push(TradeItemRequestPage(
-            token: widget.token, currentUserId: widget.currentUserId))),
+    _action("Trade Request", Icons.swap_horiz,
+            () => _push(TradeItemRequestPage(token: widget.token))),
   ]);
 
   Widget _donationTab() => _grid([
@@ -102,8 +99,6 @@ class _CustomTabSelectorState extends State<CustomTabSelector> {
     crossAxisSpacing: 12,
     childAspectRatio: 1,
     padding: const EdgeInsets.all(6),
-
-    /// ---- let the grid scroll so it never forces the parent to overflow
     physics: const BouncingScrollPhysics(),
     children: buttons,
   );

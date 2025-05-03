@@ -7,10 +7,8 @@ import '../Ratings.dart';
 import '../CustomTabSelector.dart';
 import '../bottom_nav_bar.dart';
 
-
 class HomePage extends StatefulWidget {
   final String token;
-
   const HomePage({Key? key, required this.token}) : super(key: key);
 
   @override
@@ -25,7 +23,6 @@ class _HomePageState extends State<HomePage> {
   double _avgRating = 0.0;
   int _ratingCount = 0;
   static const String BASE_URL = "http://10.0.2.2:8080";
-  String _currentUserId = "";
 
   @override
   void initState() {
@@ -44,7 +41,6 @@ class _HomePageState extends State<HomePage> {
       );
       if (resp.statusCode == 200) {
         _profile = jsonDecode(resp.body);
-        _currentUserId = _profile?["userId"] ?? "";
         await _fetchProfileImage();
         await _fetchRatingSummary();
       } else {
@@ -105,10 +101,12 @@ class _HomePageState extends State<HomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error.isNotEmpty
-          ? Center(child: Text(_error, style: const TextStyle(color: Colors.red)))
+          ? Center(
+          child:
+          Text(_error, style: const TextStyle(color: Colors.red)))
           : Padding(
-        padding:
-        const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 16),
         child: Column(
           children: [
             Text(
@@ -125,7 +123,6 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               child: CustomTabSelector(
                 token: widget.token,
-                currentUserId: _currentUserId,
               ),
             ),
           ],
@@ -176,8 +173,6 @@ class _HomePageState extends State<HomePage> {
                         color: Colors.black87),
                   ),
                   const SizedBox(height: 6),
-
-                  // ←─── updated rating row with eye icon ───→
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -196,7 +191,6 @@ class _HomePageState extends State<HomePage> {
                       _buildRatingSection(),
                     ],
                   ),
-
                   const SizedBox(height: 6),
                   const Divider(
                       thickness: 1, height: 20, color: Colors.black26),
@@ -206,8 +200,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-
-        // settings button
         Positioned(
           top: 10,
           right: 10,
@@ -233,8 +225,8 @@ class _HomePageState extends State<HomePage> {
                       offset: const Offset(0, 2)),
                 ],
               ),
-              child: const Icon(Icons.settings,
-                  size: 20, color: Colors.black87),
+              child:
+              const Icon(Icons.settings, size: 20, color: Colors.black87),
             ),
           ),
         ),

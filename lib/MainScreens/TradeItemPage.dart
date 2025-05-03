@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../TradeItemDetailsPage.dart';
 import '../bottom_nav_bar.dart';
+import '../NotificationPage.dart';
 
 class TradeItemPage extends StatefulWidget {
   final String token;
@@ -25,21 +26,40 @@ class _TradeItemPageState extends State<TradeItemPage>
   final TextEditingController _searchCtrl = TextEditingController();
   late AnimationController _animCtrl;
 
+  int _unreadCount = 0;
+
   @override
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 600),
     );
     _fetchCategories();
     _fetchAllActiveTradeItems();
+    _fetchUnreadCount();
   }
 
   @override
   void dispose() {
     _animCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    try {
+      final resp = await http.get(
+        Uri.parse("$_baseUrl/api/notifications/me/detailed"),
+        headers: {"Authorization": "Bearer ${widget.token}"},
+      );
+      if (resp.statusCode == 200) {
+        final list = jsonDecode(resp.body) as List<dynamic>;
+        setState(() {
+          _unreadCount =
+              list.where((n) => n['read'] == false).toList().length;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchCategories() async {
@@ -101,7 +121,6 @@ class _TradeItemPageState extends State<TradeItemPage>
           ),
           padding: EdgeInsets.fromLTRB(20, 24, 20, 30),
           child: ListView(controller: ctl, children: [
-            // drag handle
             Center(
               child: Container(
                 height: 5,
@@ -112,7 +131,7 @@ class _TradeItemPageState extends State<TradeItemPage>
                 ),
               ),
             ),
-            SizedBox(height: 18),
+            const SizedBox(height: 18),
             Text(
               "Filters",
               style: TextStyle(
@@ -121,9 +140,7 @@ class _TradeItemPageState extends State<TradeItemPage>
                 color: Colors.teal.shade600,
               ),
             ),
-            SizedBox(height: 20),
-
-            // Search field
+            const SizedBox(height: 20),
             TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
@@ -137,9 +154,7 @@ class _TradeItemPageState extends State<TradeItemPage>
                 ),
               ),
             ),
-            SizedBox(height: 18),
-
-            // Category dropdown
+            const SizedBox(height: 18),
             DropdownButtonFormField<int?>(
               value: _selectedCategoryId,
               decoration: InputDecoration(
@@ -171,9 +186,7 @@ class _TradeItemPageState extends State<TradeItemPage>
               ],
               onChanged: (val) => setState(() => _selectedCategoryId = val),
             ),
-            SizedBox(height: 32),
-
-            // Apply button
+            const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
@@ -203,21 +216,57 @@ class _TradeItemPageState extends State<TradeItemPage>
     return Scaffold(
       backgroundColor: Colors.teal.shade700,
       appBar: AppBar(
-        automaticallyImplyLeading: false, // no back button
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         elevation: 1,
         title: Text(
           "Trade Items",
-          style: TextStyle(
-            color: Colors.black,
-          ),
+          style: TextStyle(color: Colors.black),
         ),
         actions: [
+          // <— notification icon with badge
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: Icon(Icons.notifications_none, color: Colors.teal.shade600),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationPage(token: widget.token),
+                    ),
+                  );
+                  // refresh badge when coming back
+                  _fetchUnreadCount();
+                },
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: BoxConstraints(minWidth: 20, minHeight: 20),
+                    child: Center(
+                      child: Text(
+                        '$_unreadCount',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: Icon(Icons.filter_list, color: Colors.teal.shade600),
             tooltip: "Filters",
             onPressed: _showFilterSheet,
-          )
+          ),
         ],
       ),
       body: _isLoading
@@ -280,7 +329,6 @@ class _TradeItemPageState extends State<TradeItemPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ⇨ SLIDESHOW CAROUSEL
             ClipRRect(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               child: Container(
@@ -294,14 +342,14 @@ class _TradeItemPageState extends State<TradeItemPage>
                     fit: BoxFit.contain,
                     width: double.infinity,
                     errorBuilder: (_, __, ___) => Center(
-                        child: Icon(Icons.broken_image,
-                            size: 60, color: Colors.grey.shade400)),
+                      child: Icon(Icons.broken_image,
+                          size: 60, color: Colors.grey.shade400),
+                    ),
                   ),
                   options: CarouselOptions(
                     viewportFraction: 1.0,
                     autoPlay: true,
                     autoPlayInterval: Duration(seconds: 4),
-                    enlargeCenterPage: false,
                   ),
                 )
                     : Center(
@@ -310,8 +358,6 @@ class _TradeItemPageState extends State<TradeItemPage>
                 ),
               ),
             ),
-
-            // Title, avatar, price pill
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -353,5 +399,4 @@ class _TradeItemPageState extends State<TradeItemPage>
       ),
     );
   }
-
 }
