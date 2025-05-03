@@ -105,6 +105,51 @@ class _TradeItemPageState extends State<TradeItemPage>
     }
   }
 
+  void _openNotifications() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationPage(token: widget.token),
+      ),
+    );
+    // refresh badge count when returning
+    _fetchUnreadCount();
+  }
+
+  Widget _buildNotificationIcon() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: Icon(Icons.notifications_none, color: Colors.teal.shade600),
+          onPressed: _openNotifications,
+        ),
+        if (_unreadCount > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: GestureDetector(
+              onTap: _openNotifications,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                child: Center(
+                  child: Text(
+                    '$_unreadCount',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
@@ -119,7 +164,7 @@ class _TradeItemPageState extends State<TradeItemPage>
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          padding: EdgeInsets.fromLTRB(20, 24, 20, 30),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
           child: ListView(controller: ctl, children: [
             Center(
               child: Container(
@@ -173,14 +218,14 @@ class _TradeItemPageState extends State<TradeItemPage>
                 ),
               ),
               items: [
-                DropdownMenuItem(
+                const DropdownMenuItem(
                   value: null,
                   child: Text("All", style: TextStyle(color: Colors.black87)),
                 ),
                 ..._categories.map((c) {
-                  return DropdownMenuItem(
+                  return DropdownMenuItem<int>(
                     value: c["categoryId"] as int,
-                    child: Text(c["categoryName"], style: TextStyle(color: Colors.black87)),
+                    child: Text(c["categoryName"], style: const TextStyle(color: Colors.black87)),
                   );
                 }).toList(),
               ],
@@ -195,10 +240,10 @@ class _TradeItemPageState extends State<TradeItemPage>
                   categoryId: _selectedCategoryId,
                 );
               },
-              icon: Icon(Icons.check, color: Colors.white),
-              label: Text("Apply Filters", style: TextStyle(color: Colors.white)),
+              icon: const Icon(Icons.check, color: Colors.white),
+              label: const Text("Apply Filters", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                minimumSize: Size.fromHeight(50),
+                minimumSize: const Size.fromHeight(50),
                 backgroundColor: Colors.teal.shade600,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -219,49 +264,9 @@ class _TradeItemPageState extends State<TradeItemPage>
         automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         elevation: 1,
-        title: Text(
-          "Trade Items",
-          style: TextStyle(color: Colors.black),
-        ),
+        title: const Text("Trade Items", style: TextStyle(color: Colors.black)),
         actions: [
-          // <— notification icon with badge
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: Icon(Icons.notifications_none, color: Colors.teal.shade600),
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => NotificationPage(token: widget.token),
-                    ),
-                  );
-                  // refresh badge when coming back
-                  _fetchUnreadCount();
-                },
-              ),
-              if (_unreadCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: BoxConstraints(minWidth: 20, minHeight: 20),
-                    child: Center(
-                      child: Text(
-                        '$_unreadCount',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          _buildNotificationIcon(),
           IconButton(
             icon: Icon(Icons.filter_list, color: Colors.teal.shade600),
             tooltip: "Filters",
@@ -272,8 +277,7 @@ class _TradeItemPageState extends State<TradeItemPage>
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: Colors.teal.shade600))
           : _allItems.isEmpty
-          ? Center(
-          child: Text("No items found", style: TextStyle(color: Colors.grey)))
+          ? Center(child: Text("No items found", style: TextStyle(color: Colors.grey)))
           : FadeTransition(
         opacity: _animCtrl.drive(CurveTween(curve: Curves.easeIn)),
         child: RefreshIndicator(
@@ -283,15 +287,14 @@ class _TradeItemPageState extends State<TradeItemPage>
             categoryId: _selectedCategoryId,
           ),
           child: ListView.builder(
-            physics: AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             itemCount: _allItems.length,
             itemBuilder: (_, i) => _itemCard(_allItems[i]),
           ),
         ),
       ),
-      bottomNavigationBar:
-      BottomNavBar(selectedIndex: 0, token: widget.token),
+      bottomNavigationBar: BottomNavBar(selectedIndex: 0, token: widget.token),
     );
   }
 
@@ -305,32 +308,27 @@ class _TradeItemPageState extends State<TradeItemPage>
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              TradeItemDetailsPage(token: widget.token, itemId: item["itemId"]),
+          builder: (_) => TradeItemDetailsPage(token: widget.token, itemId: item["itemId"]),
         ),
       ),
       child: Container(
-        margin: EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [Color(0xFFB3D1B9), Colors.white],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 6,
-              offset: Offset(0, 4),
-            )
+            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 4)),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Container(
                 height: 200,
                 color: Colors.grey.shade200,
@@ -342,53 +340,47 @@ class _TradeItemPageState extends State<TradeItemPage>
                     fit: BoxFit.contain,
                     width: double.infinity,
                     errorBuilder: (_, __, ___) => Center(
-                      child: Icon(Icons.broken_image,
-                          size: 60, color: Colors.grey.shade400),
+                      child: Icon(Icons.broken_image, size: 60, color: Colors.grey.shade400),
                     ),
                   ),
                   options: CarouselOptions(
                     viewportFraction: 1.0,
                     autoPlay: true,
-                    autoPlayInterval: Duration(seconds: 4),
+                    autoPlayInterval: const Duration(seconds: 4),
                   ),
                 )
                     : Center(
-                  child: Icon(Icons.broken_image,
-                      size: 60, color: Colors.grey.shade400),
+                  child: Icon(Icons.broken_image, size: 60, color: Colors.grey.shade400),
                 ),
               ),
             ),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 22,
                     backgroundImage: ownerImg != null && ownerImg.isNotEmpty
                         ? NetworkImage(ownerImg)
-                        : AssetImage("images/default_profile.png")
-                    as ImageProvider,
+                        : const AssetImage("images/default_profile.png") as ImageProvider,
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       title,
-                      style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Container(
-                    padding:
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.teal.shade600,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       "Rs. $price",
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],

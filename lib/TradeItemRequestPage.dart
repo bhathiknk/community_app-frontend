@@ -63,7 +63,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
         });
       }
     } catch (_) {
-      // ignore errors
+      // ignore
     } finally {
       setState(() => _isLoading = false);
     }
@@ -77,9 +77,9 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
     );
     if (req != null) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (req["status"] == "ACCEPTED") {
-          _showAcceptedRequestDetailsDialog(req,
-              incoming: widget.initialIsIncoming);
+        if (req["status"] == "ACCEPTED" || req["status"] == "REJECTED") {
+          _showAcceptedRequestDetailsDialog(
+              req, incoming: widget.initialIsIncoming);
         } else {
           _showRequestDetailsDialog(req,
               showActions: widget.initialIsIncoming);
@@ -88,11 +88,11 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
     }
   }
 
-  Future<void> _approveRequest(String requestId, String selectedItemId) async {
+  Future<void> _approveRequest(
+      String requestId, String selectedItemId) async {
     final resp = await http.post(
       Uri.parse(
-        "$BASE_URL/api/trade/requests/$requestId/approve?selectedItemId=$selectedItemId",
-      ),
+          "$BASE_URL/api/trade/requests/$requestId/approve?selectedItemId=$selectedItemId"),
       headers: {
         "Authorization": "Bearer ${widget.token}",
         "Content-Type": "application/json"
@@ -139,8 +139,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       final selected = await Navigator.push<String>(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              SenderItemSelectionPage(senderItems: items),
+          builder: (_) => SenderItemSelectionPage(senderItems: items),
           fullscreenDialog: true,
         ),
       );
@@ -175,7 +174,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // header
+              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -194,7 +193,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
               ),
               const Divider(thickness: 1.3),
               const SizedBox(height: 8),
-              // your item section
+              // Item section
               _buildItemSection(
                 label: "Your Item",
                 title: title,
@@ -234,12 +233,12 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                           senderId: req["offeredByUserId"],
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green),
+                      style:
+                      ElevatedButton.styleFrom(backgroundColor: Colors.green),
                       child: const Text("APPROVE"),
                     ),
                   ],
-                ),
+                )
             ],
           ),
         ),
@@ -269,8 +268,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       barrierDismissible: true,
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Stack(
           children: [
             Container(
@@ -312,7 +310,11 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildSectionHeader("Offered Item Details"),
+                      const Text("Offered Item Details",
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Text("Title: $offTitle",
                           style: const TextStyle(color: Colors.white)),
@@ -323,7 +325,11 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                       const SizedBox(height: 8),
                       _buildImageSlideshow(imgsOff),
                       const SizedBox(height: 16),
-                      _buildSectionHeader("Sender Contact Information"),
+                      const Text("Sender Contact Information",
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                       Text("Email: $email",
                           style: const TextStyle(color: Colors.white)),
                       Text("Phone: $phone",
@@ -353,8 +359,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
                       radius: 0.9,
                     ),
                   ),
-                  child: const Icon(Icons.check_circle,
-                      size: 56, color: Colors.white),
+                  child:
+                  const Icon(Icons.check_circle, size: 56, color: Colors.white),
                 ),
               ),
             ),
@@ -378,9 +384,7 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
       children: [
         Text(title,
             style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white)),
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -536,8 +540,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
             subtitle: const Text("Status: ACCEPTED"),
             trailing: IconButton(
               icon: const Icon(Icons.open_in_new),
-              onPressed: () =>
-                  _showAcceptedRequestDetailsDialog(req, incoming: incoming),
+              onPressed: () => _showAcceptedRequestDetailsDialog(
+                  req, incoming: incoming),
             ),
           ),
         );
@@ -550,8 +554,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
     final pending = list.where((r) => r["status"] == "PENDING").toList();
     final accepted = list.where((r) => r["status"] == "ACCEPTED").toList();
     final rejected = list.where((r) => r["status"] == "REJECTED").toList();
-    final bool isThisGroupInitial =
-        widget.initialRequestId != null && incoming == widget.initialIsIncoming;
+    final bool isThisGroupInitial = widget.initialRequestId != null &&
+        incoming == widget.initialIsIncoming;
     final int initialStatusIndex = isThisGroupInitial ? 1 : 0;
 
     return DefaultTabController(
@@ -597,8 +601,8 @@ class _TradeItemRequestPageState extends State<TradeItemRequestPage> {
           backgroundColor: const Color(0xFFECF3EC),
           appBar: AppBar(
             backgroundColor: Colors.white,
-            title: const Text("Trade Requests",
-                style: TextStyle(color: Colors.black)),
+            title:
+            const Text("Trade Requests", style: TextStyle(color: Colors.black)),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () => _onWillPop(),

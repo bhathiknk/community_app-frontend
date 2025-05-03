@@ -74,7 +74,12 @@ class _NotificationPageState extends State<NotificationPage> {
         itemBuilder: (_, i) {
           final n = _notes[i];
           final read = n['read'] as bool? ?? false;
-          final msg = n['message'] as String? ?? '';
+
+          // raw message from backend
+          final rawMsg = n['message'] as String? ?? '';
+          // remove any non-ASCII characters
+          final msg = rawMsg.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
+
           final when = (n['createdAt'] as String?)?.split('.')[0] ?? '';
           final type = n['referenceType'] as String? ?? 'UNKNOWN';
           final refId = n['referenceId'] as String? ?? '';
@@ -96,12 +101,11 @@ class _NotificationPageState extends State<NotificationPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(when,
-                      style:
-                      const TextStyle(fontSize: 12, color: Colors.black54)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Colors.black54)),
                   const SizedBox(height: 4),
                   Text("Type: $type",
                       style: const TextStyle(fontSize: 12)),
-                  Text("ID: $refId", style: const TextStyle(fontSize: 12)),
                 ],
               ),
               isThreeLine: true,
@@ -112,13 +116,17 @@ class _NotificationPageState extends State<NotificationPage> {
               ),
               onTap: () {
                 if (type == 'TRADE_REQUEST') {
+                  final lower = msg.toLowerCase();
+                  final isAccepted = lower.contains('accepted') ||
+                      lower.contains('rejected');
+                  final initialIsIncoming = !isAccepted;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => TradeItemRequestPage(
                         token: widget.token,
                         initialRequestId: refId,
-                        initialIsIncoming: false,
+                        initialIsIncoming: initialIsIncoming,
                       ),
                     ),
                   );
