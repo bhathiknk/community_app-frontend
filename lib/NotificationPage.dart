@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'DonationRequest.dart';
 import 'TradeItemRequestPage.dart';
 
 class NotificationPage extends StatefulWidget {
@@ -13,24 +14,33 @@ class NotificationPage extends StatefulWidget {
 
 class _NotificationPageState extends State<NotificationPage> {
   static const String BASE_URL = "http://10.0.2.2:8080";
+
   bool _isLoading = false;
   List<dynamic> _notes = [];
+
+  // We fetch these to build friendly donation messages:
+  List<dynamic> _donationIncoming = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchNotes();
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    setState(() => _isLoading = true);
+    await Future.wait([_fetchNotes(), _fetchDonationIncoming()]);
+    setState(() => _isLoading = false);
   }
 
   Future<void> _fetchNotes() async {
-    setState(() => _isLoading = true);
     try {
       final resp = await http.get(
         Uri.parse("$BASE_URL/api/notifications/me/detailed"),
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
       if (resp.statusCode == 200) {
-        setState(() => _notes = jsonDecode(resp.body));
+        _notes = jsonDecode(resp.body);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to load notifications')),
@@ -38,10 +48,22 @@ class _NotificationPageState extends State<NotificationPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error loading notifications: $e')),
       );
-    } finally {
-      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchDonationIncoming() async {
+    try {
+      final resp = await http.get(
+        Uri.parse("$BASE_URL/api/donation-requests/incoming"),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (resp.statusCode == 200) {
+        _donationIncoming = jsonDecode(resp.body);
+      }
+    } catch (_) {
+      // no‐op
     }
   }
 
@@ -50,7 +72,7 @@ class _NotificationPageState extends State<NotificationPage> {
       Uri.parse("$BASE_URL/api/notifications/$id/read?read=$read"),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
-    _fetchNotes();
+    await _fetchNotes();
   }
 
   @override
@@ -74,40 +96,54 @@ class _NotificationPageState extends State<NotificationPage> {
         itemBuilder: (_, i) {
           final n = _notes[i];
           final read = n['read'] as bool? ?? false;
-
-          // raw message from backend
-          final rawMsg = n['message'] as String? ?? '';
-          // remove any non-ASCII characters
-          final msg = rawMsg.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
-
-          final when = (n['createdAt'] as String?)?.split('.')[0] ?? '';
-          final type = n['referenceType'] as String? ?? 'UNKNOWN';
+          final type = (n['referenceType'] as String? ?? 'UNKNOWN').toUpperCase();
           final refId = n['referenceId'] as String? ?? '';
+          final when = (n['createdAt'] as String?)?.split('.')[0] ?? '';
+
+          // Default to the raw, sanitized backend message:
+          final rawMsg = n['message'] as String? ?? '';
+          final msgDefault = rawMsg.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
+
+          // Build a custom donation‐request message if possible:
+          String displayMsg = msgDefault;
+          if (type == 'DONATION_REQUEST') {
+            final match = _donationIncoming.firstWhere(
+                  (r) => r['requestId'] == refId,
+              orElse: () => null,
+            );
+            if (match != null) {
+              final requester = match['requesterFullName'] ?? 'Someone';
+              final title = match['donationTitle'] ?? 'your item';
+              displayMsg = "$requester requested your donation “$title”.";
+            }
+          }
 
           return Card(
             color: read ? Colors.white : const Color(0xFFE8F5E9),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8)),
             child: ListTile(
-              contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 8),
               leading: Icon(
                 read ? Icons.mark_email_read : Icons.mark_email_unread,
                 color: read ? Colors.grey : Colors.green,
               ),
-              title: Text(msg,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Column(
+              title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(when,
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.black54)),
-                  const SizedBox(height: 4),
-                  Text("Type: $type",
-                      style: const TextStyle(fontSize: 12)),
+                  Text(displayMsg,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Chip(
+                    label: Text(type),
+                    backgroundColor: Colors.teal.shade100,
+                  ),
                 ],
               ),
+              subtitle: Text(when,
+                  style: const TextStyle(
+                      fontSize: 12, color: Colors.black54)),
               isThreeLine: true,
               trailing: IconButton(
                 icon: Icon(read ? Icons.close : Icons.done),
@@ -116,22 +152,32 @@ class _NotificationPageState extends State<NotificationPage> {
               ),
               onTap: () {
                 if (type == 'TRADE_REQUEST') {
-                  final lower = msg.toLowerCase();
-                  final isAccepted = lower.contains('accepted') ||
-                      lower.contains('rejected');
-                  final initialIsIncoming = !isAccepted;
+                  final isAccepted = displayMsg.toLowerCase().contains('accepted') ||
+                      displayMsg.toLowerCase().contains('rejected');
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => TradeItemRequestPage(
                         token: widget.token,
                         initialRequestId: refId,
-                        initialIsIncoming: initialIsIncoming,
+                        initialIsIncoming: !isAccepted,
+                      ),
+                    ),
+                  );
+                } else if (type == 'DONATION_REQUEST') {
+                  final isAccepted = displayMsg.toLowerCase().contains('accepted') ||
+                      displayMsg.toLowerCase().contains('rejected');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DonationRequestPage(
+                        token: widget.token,
+                        initialRequestId: refId,
+                        initialIsIncoming: !isAccepted,
                       ),
                     ),
                   );
                 }
-                // TODO: handle DONATION_REQUEST the same way
               },
             ),
           );

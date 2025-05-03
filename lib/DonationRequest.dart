@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -6,24 +5,38 @@ import 'donation_complete_page.dart';
 
 class DonationRequestPage extends StatefulWidget {
   final String token;
-  const DonationRequestPage({Key? key, required this.token}) : super(key: key);
+  final String? initialRequestId;
+  final bool initialIsIncoming;
+
+  const DonationRequestPage({
+    Key? key,
+    required this.token,
+    this.initialRequestId,
+    this.initialIsIncoming = false,
+  }) : super(key: key);
 
   @override
   State<DonationRequestPage> createState() => _DonationRequestPageState();
 }
 
 class _DonationRequestPageState extends State<DonationRequestPage> {
-  int _outerIndex = 0; // 0=Incoming,1=Sent
-  int _innerIndex = 0; // 0=Pending,1=Accepted,2=Rejected
+  int _outerIndex = 0; // 0 = Incoming, 1 = Sent
+  int _innerIndex = 0; // 0 = Pending, 1 = Accepted, 2 = Rejected
   bool _loading = true;
+
   List<dynamic> _incoming = [];
   List<dynamic> _sent = [];
-  static const _base = "http://10.0.2.2:8080";
+
+  static const String _base = "http://10.0.2.2:8080";
 
   @override
   void initState() {
     super.initState();
-    _fetchAll();
+    _fetchAll().then((_) {
+      if (widget.initialRequestId != null) {
+        _openInitialRequest();
+      }
+    });
   }
 
   Future<void> _fetchAll() async {
@@ -40,9 +53,36 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
       if (inResp.statusCode == 200) _incoming = jsonDecode(inResp.body);
       if (sentResp.statusCode == 200) _sent = jsonDecode(sentResp.body);
     } catch (_) {
-      // ignore
+      // ignore errors
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  void _openInitialRequest() {
+    // choose the right list based on sender/receiver
+    final list = widget.initialIsIncoming ? _incoming : _sent;
+    final req = list.firstWhere(
+          (r) => r["requestId"] == widget.initialRequestId,
+      orElse: () => null,
+    );
+    if (req != null) {
+      final status = (req["status"] as String).toUpperCase();
+      int idx;
+      switch (status) {
+        case "ACCEPTED":
+          idx = 1;
+          break;
+        case "REJECTED":
+          idx = 2;
+          break;
+        default:
+          idx = 0;
+      }
+      setState(() {
+        _outerIndex = widget.initialIsIncoming ? 0 : 1;
+        _innerIndex = idx;
+      });
     }
   }
 
@@ -94,12 +134,12 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
   Widget build(BuildContext context) {
     final primary = Colors.teal.shade600;
     final secondary = Colors.teal.shade900;
+
     return Scaffold(
       backgroundColor: const Color(0xFFB3D1B9),
       appBar: AppBar(
         title: const Text("Donation Requests"),
         backgroundColor: Colors.white,
-        elevation: 0,
       ),
       body: Column(
         children: [
@@ -127,7 +167,6 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
         child: Row(
           children: ["Incoming", "Sent"].asMap().entries.map((entry) {
             final idx = entry.key;
-            final label = entry.value;
             final selected = idx == _outerIndex;
             return Expanded(
               child: InkWell(
@@ -144,7 +183,7 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                   ),
                   child: Center(
                     child: Text(
-                      label,
+                      entry.value,
                       style: TextStyle(
                         color: selected ? Colors.white : primary,
                         fontWeight: FontWeight.bold,
@@ -173,7 +212,6 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
               .entries
               .map((entry) {
             final idx = entry.key;
-            final label = entry.value;
             final selected = idx == _innerIndex;
             return Expanded(
               child: InkWell(
@@ -187,7 +225,7 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                   ),
                   child: Center(
                     child: Text(
-                      label,
+                      entry.value,
                       style: TextStyle(
                         color: selected ? Colors.white : secondary,
                         fontSize: 13,
@@ -208,6 +246,7 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
     final data = _outerIndex == 0 ? _incoming : _sent;
     final status = ["PENDING", "ACCEPTED", "REJECTED"][_innerIndex];
     final items = _filter(data, status);
+
     if (items.isEmpty) {
       return Center(
         child: Text(
@@ -216,6 +255,7 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
         ),
       );
     }
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
@@ -225,28 +265,32 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
 
   Widget _buildCard(dynamic r) {
     final incoming = _outerIndex == 0;
-    final title = r[incoming ? "donationTitle" : "donationTitle"] as String? ?? "";
+    final title = r["donationTitle"] as String? ?? "";
     final imgs = (r["donationImages"] as List? ?? []).cast<String>();
     final img = imgs.isNotEmpty ? imgs.first : null;
     final status = r["status"] as String;
     final msg = r["message"] as String? ?? "";
     final id = r["requestId"] as String;
 
-    final name = incoming ? r["requesterFullName"] : r["receiverFullName"];
-    final email = incoming ? r["requesterEmail"] : r["receiverEmail"];
-    final phone = incoming ? r["requesterPhone"] : r["receiverPhone"];
-    final prof = incoming ? r["requesterProfile"] : r["receiverProfile"];
+    final name =
+    incoming ? r["requesterFullName"] : r["receiverFullName"];
+    final email =
+    incoming ? r["requesterEmail"] : r["receiverEmail"];
+    final phone =
+    incoming ? r["requesterPhone"] : r["receiverPhone"];
+    final prof =
+    incoming ? r["requesterProfile"] : r["receiverProfile"];
 
     final statusColor = _statusColor(status);
 
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 3,
       child: Row(
         children: [
-          // status stripe
           Container(width: 6, height: 140, color: statusColor),
           Expanded(
             child: Padding(
@@ -257,20 +301,14 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                     if (img != null)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          img,
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
-                        ),
+                        child: Image.network(img,
+                            width: 60, height: 60, fit: BoxFit.cover),
                       ),
                     if (img != null) const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
+                      child: Text(title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -279,44 +317,34 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                         color: statusColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        status,
-                        style:
-                        const TextStyle(color: Colors.white, fontSize: 12),
-                      ),
+                      child: Text(status,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12)),
                     ),
                   ]),
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      "Message: $msg",
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
+                    child: Text("Message: $msg",
+                        style: TextStyle(color: Colors.grey.shade700)),
                   ),
                   const SizedBox(height: 12),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
                       radius: 24,
-                      backgroundImage: (prof as String).isNotEmpty
-                          ? NetworkImage(prof)
-                          : null,
+                      backgroundImage:
+                      prof.isNotEmpty ? NetworkImage(prof) : null,
                       child: prof.isEmpty
                           ? const Icon(Icons.person_outline)
                           : null,
                     ),
-                    title: Text(
-                      name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      "$email\n$phone",
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    title: Text(name,
+                        style:
+                        const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text("$email\n$phone",
+                        style: const TextStyle(fontSize: 12)),
                   ),
-
-                  // Accept/Reject for incoming
                   if (incoming && status == "PENDING")
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -325,25 +353,26 @@ class _DonationRequestPageState extends State<DonationRequestPage> {
                           onPressed: () => _respond(id, false),
                           child: const Text("Reject"),
                           style: TextButton.styleFrom(
-                              foregroundColor: Colors.red.shade700),
+                              foregroundColor:
+                              Colors.red.shade700),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () => _respond(id, true),
                           child: const Text("Accept"),
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal.shade600),
+                              backgroundColor:
+                              Colors.teal.shade600),
                         ),
                       ],
                     ),
-
-                  // “Complete Donation” for sent & accepted
                   if (!incoming && status == "ACCEPTED")
                     Align(
                       alignment: Alignment.centerRight,
                       child: ElevatedButton(
                         onPressed: () => _complete(id),
-                        child: const Text("🎉 Donation Complete"),
+                        child:
+                        const Text("🎉 Donation Complete"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.teal.shade900,
                           foregroundColor: Colors.white,
